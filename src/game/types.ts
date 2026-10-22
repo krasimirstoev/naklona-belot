@@ -27,6 +27,8 @@ export interface RoundResult {
   outcome: 'made' | 'failed' | 'hanging'; capot: boolean;
 }
 export interface Game {
+  /** Immutable model for this match; null/absent means the original hard policy. Never exposed in View. */
+  botModelId?: string | null;
   events: AnnouncementEvent[]; eventSeq: number;
   id: string; revision: number; difficulty: Difficulty; phase: Phase; dealer: number; turn: number; round: number;
   hands: Card[][]; stock: Card[]; contract: Contract | null; declarer: number | null; multiplier: number;

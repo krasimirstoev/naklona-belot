@@ -125,18 +125,18 @@ function search(hands: Card[][], trick: Play[], turn: number, contract: Contract
   }
   return Number.isFinite(best)?best:0;
 }
-export function hardAction(v: View, budgetMs=220, rng=Math.random): Action {
+export function hardAction(v: View, budgetMs=220, rng=Math.random, maxIterations=100): Action {
   if(v.phase!=='playing' || v.legalCards.length<=1) return basicAction(v,rng);
-  return playAction(v,decideHardCard(v,budgetMs,rng).card);
+  return playAction(v,decideHardCard(v,budgetMs,rng,maxIterations).card);
 }
 /** Internal diagnostics; the wire action continues to contain only the played card. */
-export function decideHardCard(v: View, budgetMs=220, rng=Math.random): BotDecision {
+export function decideHardCard(v: View, budgetMs=220, rng=Math.random, maxIterations=100): BotDecision {
   const deadline=performance.now()+budgetMs;
   const knowledge=buildKnowledge(v);
   const tactical=decideCard(v,v.legalCards,knowledge);
   const totals=v.legalCards.map(()=>0);let iterations=0;
   // Complete each batch to compare cards on the same hidden distribution.
-  while(iterations<100 && performance.now()<deadline-15) {
+  while(iterations<maxIterations && performance.now()<deadline-15) {
     const sampled=sampleFromKnowledge(v,knowledge,rng);if(!sampled) break;
     const scores: number[]=[];let complete=true;
     for(const c of v.legalCards) {

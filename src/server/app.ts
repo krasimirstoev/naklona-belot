@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { applyAction, newGame, view } from '../game/engine.js';
+import { modelForNewMatch, modelPath, registryDirectory } from './model-registry.js';
 import { basicAction } from '../game/bots.js';
 import type { Action, Difficulty, Game, View } from '../game/types.js';
 import { Store } from './storage.js';
@@ -14,7 +15,8 @@ import { TurnScheduler, type TimerClock } from './scheduler.js';
 import { turnDelay } from '../game/tempo.js';
 import type { Settings } from '../game/types.js';
 
-export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay?:number; logger?:boolean; clock?:TimerClock; chooseBot?:(v:View)=>Promise<Action>|Action}={}) {
+export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay?:number; logger?:boolean; clock?:TimerClock; chooseBot?:(v:View)=>Promise<Action>|Action; modelRegistryDir?:string}={}) {
+  const modelRegistryDir=resolve(options.modelRegistryDir??registryDirectory());
   const app=Fastify({logger:options.logger??false,bodyLimit:8192,ajv:{customOptions:{removeAdditional:false}}});
   if(!options.dbPath) mkdirSync('data',{recursive:true});
   const store=new Store(options.dbPath??resolve('data/belot.sqlite'));
@@ -45,15 +47,16 @@ export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay
     store.save(session,g,requestId);
     broadcast(session);
   };
-  async function choose(v: View): Promise<Action> {
+  async function choose(v: View, modelId: string | null): Promise<Action> {
     if(options.chooseBot)return options.chooseBot(v);
     if(v.difficulty!=='hard') return basicAction(v);
     const ext=import.meta.url.endsWith('.ts')?'ts':'js';
+    const payload={view:v,modelId,modelPath:modelId?modelPath(modelId,modelRegistryDir):null};
     return new Promise(resolveAction=>{
       // tsx's programmatic loader also supports worker entry points in development.
       const worker=ext==='ts'
-        ? new Worker(`const { workerData, parentPort } = require('node:worker_threads'); import('tsx/esm/api').then(async ({ tsImport }) => { const { hardAction } = await tsImport(${JSON.stringify(new URL('../game/bots.ts',import.meta.url).href)}, ${JSON.stringify(import.meta.url)}); parentPort.postMessage(hardAction(workerData)); });`,{eval:true,workerData:v})
-        : new Worker(new URL('./bot-worker.js',import.meta.url),{workerData:v});
+        ? new Worker(`const { workerData, parentPort } = require('node:worker_threads'); import('tsx/esm/api').then(async ({ tsImport }) => { const { workerAction } = await tsImport(${JSON.stringify(new URL('./learned-bot.ts',import.meta.url).href)}, ${JSON.stringify(import.meta.url)}); parentPort.postMessage(workerAction(workerData.view,workerData.modelPath,workerData.modelId)); });`,{eval:true,workerData:payload})
+        : new Worker(new URL('./bot-worker.js',import.meta.url),{workerData:payload});
       workers.add(worker);let done=false;
       const finish=(action:Action)=>{if(done)return;done=true;clearTimeout(timeout);workers.delete(worker);void worker.terminate();resolveAction(action);};
       const timeout=setTimeout(()=>finish(basicAction(v)),2500);
@@ -72,7 +75,7 @@ export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay
       try {
         if(get(session)!==g || g.revision!==revision)return;
         const player=g.phase==='trick'?-1:g.turn;
-        const action:Action=g.phase==='trick'?{type:'collect'}:await choose(view(g,g.turn));
+        const action:Action=g.phase==='trick'?{type:'collect'}:await choose(view(g,g.turn),g.botModelId??null);
         if(closing || get(session)!==g || g.revision!==revision)return;
         applyAction(g,player,action);publish(session,g);
       }catch(error){app.log.error(error,'Bot action failed');}
@@ -98,7 +101,9 @@ export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay
     const session=req.cookies.belot!,id=req.body.requestId;
     if(store.hasRequest(session,id)) return response(session);
     scheduler.cancel(session);
-    const g=newGame(req.body.difficulty);games.set(session,g);publish(session,g,id);schedule(session);
+    const g=newGame(req.body.difficulty);
+    g.botModelId=g.difficulty==='hard'?modelForNewMatch(modelRegistryDir):null;
+    games.set(session,g);publish(session,g,id);schedule(session);
     return response(session);
   });
   app.post<{Body:{gameId:string;revision:number;requestId:string;action:Action}}>('/api/action',{

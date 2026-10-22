@@ -91,7 +91,7 @@ export function deal(g: Game, rng=Math.random) {
   g.message='Пет карти. Време е за обявяване.';
 }
 export function newGame(difficulty: Difficulty, rng=Math.random): Game {
-  const g: Game={events:[],eventSeq:0,id:randomUUID(),revision:0,difficulty,phase:'bidding',dealer:3,turn:0,round:1,hands:[],stock:[],contract:null,declarer:null,multiplier:1,passes:0,calls:[],trick:[],tricks:[],announcements:[],belots:[],scores:[0,0],hanging:0,results:[],message:''};
+  const g: Game={botModelId:null,events:[],eventSeq:0,id:randomUUID(),revision:0,difficulty,phase:'bidding',dealer:3,turn:0,round:1,hands:[],stock:[],contract:null,declarer:null,multiplier:1,passes:0,calls:[],trick:[],tricks:[],announcements:[],belots:[],scores:[0,0],hanging:0,results:[],message:''};
   deal(g,rng); return g;
 }
 export function roundedPair(raw: number[], contract: Contract, declarer: number): number[] {
@@ -131,6 +131,7 @@ function announce(g: Game, player: number, kind: AnnouncementEvent['kind'], text
 // Older saves contain the full game but no public event journal. Reconstruct only
 // information that was public, preserving the original state and revision.
 export function hydrateGame(g: Game): Game {
+  g.botModelId ??= null;
   if(Array.isArray(g.events)) {g.eventSeq??=Math.max(0,...g.events.map(e=>e.id));return g;}
   g.events=[];g.eventSeq=0;
   for(const c of g.calls)announce(g,c.player,'bid',BID_LABEL[c.bid],c.bid);

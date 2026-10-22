@@ -1,4 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import { hardAction } from '../game/bots.js';
+import { workerAction } from './learned-bot.js';
 import type { View } from '../game/types.js';
-parentPort!.postMessage(hardAction(workerData as View));
+const action='view' in workerData
+  ? workerAction(workerData.view as View,workerData.modelPath,workerData.modelId)
+  : workerAction(workerData as View);
+parentPort!.postMessage(action);

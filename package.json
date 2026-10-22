@@ -8,11 +8,13 @@
   },
   "scripts": {
     "dev": "node --import tsx src/server/index.ts --dev",
-    "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json",
+    "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json && node --import tsx scripts/build-bot-reference.ts",
     "start": "node dist/server/server/index.js",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
-    "assets": "node scripts/cards.mjs"
+    "assets": "node scripts/cards.mjs",
+    "bots:learn": ".venv-training/bin/python training/learn.py",
+    "test:training": ".venv-training/bin/python -m unittest discover -s training -p 'test_*.py'"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
