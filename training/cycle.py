@@ -10,6 +10,8 @@ import uuid
 
 import torch
 import learn
+from reporting import event_output, next_step, print_status
+from budget import GameBudget, deadline_for
 
 DEFAULTS = {"teacher_examples": 10000, "pretrain_steps": 1000, "matches_per_candidate": 100,
             "validation_seeds": 20, "workers": 2, "threads": 2, "seed": 7}
@@ -43,24 +45,35 @@ def status(directory, registry=None):
     registry = Path(registry or state.get("config", {}).get("registry", learn.ROOT / "data/models")).resolve()
     active = read_json(registry / "active.json", {"version": 1, "current": None, "previous": None, "revision": 0})
     candidate = state.get("candidate")
-    reports = {}
-    if candidate:
+    def reports_for(entry):
+        reports = {}
         for name in ["validation", "primary", "crossplay", "champion"]:
-            report = read_json(candidate.get(name, "")) if candidate.get(name) else None
+            report = read_json(entry[name]) if entry and entry.get(name) else None
             if report:
-                reports[name] = {k: report.get(k) for k in ["games", "completedSeeds", "seedsRequested", "complete", "confidence", "contracts", "latency", "namespace", "opponentSha256"]}
+                summary = {k: report.get(k) for k in ["games", "wins", "earlyRejected", "earlyRejection", "completedSeeds", "seedsRequested", "complete", "confidence", "contracts", "latency", "namespace", "opponentSha256", "scenarios"]}
+                # Legacy reports have no raw win count. Complete clusters have an exact mean.
+                if summary["wins"] is None and report.get("complete"):
+                    summary["wins"] = round(report["confidence"]["mean"] * report["games"])
+                reports[name] = summary
+        return reports
+    reports = reports_for(candidate)
+    history = state.get("history", [])
+    last = history[-1] if history else None
     latest = directory / "candidate.json"
     compatible_active = candidate and active["current"] in [candidate.get("championId"), candidate["id"]]
-    return {"run": str(directory), "phase": state.get("phase", "not-started"), "metrics": metrics(directory),
+    result = {"run": str(directory), "phase": state.get("phase", "not-started"), "metrics": metrics(directory),
             "latestModel": learn.file_digest(latest) if latest.exists() else None,
             "candidate": candidate, "bestValidation": state.get("best"), "active": active,
             "reports": reports, "readyForActivation": bool(state.get("phase") == "ready" and compatible_active),
             "thresholds": state.get("config"), "nextTrainingMatch": state.get("nextMatches"),
-            "history": state.get("history", [])}
+            "history": history, "lastOutcome": {**last, "reports": reports_for(last)} if last else None}
+    result["nextStep"] = next_step(result)
+    return result
 
 
 class Cycle:
     def __init__(self, args):
+        self.json_output = getattr(args, "json", False)
         self.directory = Path(args.run).resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
         self.lock = (self.directory / "cycle.lock").open("a+")
@@ -68,21 +81,25 @@ class Cycle:
         self.path = self.directory / "cycle.json"
         previous = read_json(self.path)
         self.bridge = learn.Bridge()
-        saved = previous["config"] if previous else {}
-        config = {key: getattr(args, key, None) if getattr(args, key, None) is not None else saved.get(key, default)
-                  for key, default in DEFAULTS.items()}
-        registry = getattr(args, "registry", None) or saved.get("registry") or learn.os.environ.get("BELOT_MODEL_REGISTRY", str(learn.ROOT / "data/models"))
-        config.update(registry=str(Path(registry).resolve()), referenceFingerprint=self.bridge.info["referenceFingerprint"], version=1)
-        if any(not isinstance(config[key], int) or config[key] < 1 for key in DEFAULTS if key != "seed") or not 1 <= config["teacher_examples"] <= 20000:
-            raise ValueError("Cycle thresholds must be positive; teacher-examples must be 1..20000")
-        if not 1 <= config["workers"] <= 8 or not 1 <= config["threads"] <= 8 or not 0 <= config["seed"] < 2**31:
-            raise ValueError("Invalid worker/thread/seed configuration")
-        if previous and saved != config:
-            raise ValueError("Cycle configuration or reference bot changed; start a new run")
-        self.state = previous or {"version": 1, "runId": uuid.uuid4().hex, "config": config, "phase": "collect",
-                                  "nextMatches": config["matches_per_candidate"], "candidate": None, "best": None, "history": []}
-        self.config = config
-        self.save()
+        try:
+            saved = previous["config"] if previous else {}
+            config = {key: getattr(args, key, None) if getattr(args, key, None) is not None else saved.get(key, default)
+                      for key, default in DEFAULTS.items()}
+            registry = getattr(args, "registry", None) or saved.get("registry") or learn.os.environ.get("BELOT_MODEL_REGISTRY", str(learn.ROOT / "data/models"))
+            config.update(registry=str(Path(registry).resolve()), referenceFingerprint=self.bridge.info["referenceFingerprint"], version=1)
+            if any(not isinstance(config[key], int) or config[key] < 1 for key in DEFAULTS if key != "seed") or not 1 <= config["teacher_examples"] <= 20000:
+                raise ValueError("Cycle thresholds must be positive; teacher-examples must be 1..20000")
+            if not 1 <= config["workers"] <= 8 or not 1 <= config["threads"] <= 8 or not 0 <= config["seed"] < 2**31:
+                raise ValueError("Invalid worker/thread/seed configuration")
+            if previous and saved != config:
+                raise ValueError("Cycle configuration or reference bot changed; start a new run")
+            self.state = previous or {"version": 1, "runId": uuid.uuid4().hex, "config": config, "phase": "collect",
+                                      "nextMatches": config["matches_per_candidate"], "candidate": None, "best": None, "history": []}
+            self.config = config
+            self.save()
+        except Exception:
+            self.close()
+            raise
 
     def close(self):
         self.bridge.close()
@@ -96,11 +113,12 @@ class Cycle:
 
     def session_phase(self, phase, minutes, target):
         session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"])
+        session.progress_json = self.json_output
         try:
             if phase == "pretrain":
                 session.pretrain(minutes, stop_at=target)
             else:
-                session.collect_or_train(phase, minutes, stop_at=target)
+                session.collect_or_train(phase, minutes, stop_at=target, game_budget=getattr(self, "game_budget", None))
             return dict(session.metrics)
         finally:
             session.close()
@@ -126,7 +144,7 @@ class Cycle:
             candidate[namespace_key] = ("validation-v1:" + self.state["runId"] if split == "validation" else "final-v1:" + uuid.uuid4().hex)
         self.save()  # Reserve the exact immutable candidate, report and independent seed space first.
         args = argparse.Namespace(model=candidate["path"], report=candidate[name], split=split, partner=partner,
-                                  seeds=seeds, minutes=minutes, namespace=candidate[namespace_key], opponent=opponent, quiet=True)
+                                  seeds=seeds, minutes=minutes, namespace=candidate[namespace_key], opponent=opponent, quiet=True, progress=True, progress_phase=name, progress_json=self.json_output, game_budget=getattr(self, "game_budget", None))
         return learn.evaluate(args)
 
     @staticmethod
@@ -137,14 +155,18 @@ class Cycle:
 
     def reject(self, reason):
         candidate = self.state["candidate"]
-        self.state["history"].append({"id": candidate["id"], "reason": reason, "validation": candidate["validation"]})
+        self.state["history"].append({"id": candidate["id"], "reason": reason,
+                                      **{name: candidate[name] for name in ["validation", "primary", "crossplay", "champion"] if name in candidate}})
         self.state.update(phase="train", candidate=None,
                           nextMatches=metrics(self.directory)["matches"] + self.config["matches_per_candidate"])
         self.save()
+        event_output({"event": "candidate-rejected", "model": candidate["id"], "reason": reason}, self.json_output)
 
     def ready(self):
         candidate = self.state["candidate"]
         current = self.active()["current"]
+        if current is None:
+            candidate["championId"] = None
         if current and current != candidate["championId"]:
             candidate["championId"] = current
             for key in ["champion", "championNamespace"]:
@@ -168,6 +190,9 @@ class Cycle:
             target = {"collect": self.config["teacher_examples"], "pretrain": self.config["pretrain_steps"], "train": self.state["nextMatches"]}[phase]
             values = metrics(self.directory)
             if values.get(key, 0) < target:
+                budget = getattr(self, "game_budget", None)
+                if budget and budget.exhausted:
+                    return
                 values = self.session_phase(phase, minutes, target)
             if values.get(key, 0) >= target:
                 if phase == "train":
@@ -177,6 +202,9 @@ class Cycle:
                     self.save()
         elif phase == "validation":
             report = self.evaluate("validation", minutes, self.config["validation_seeds"], "hard", "validation")
+            if report.get("earlyRejected"):
+                self.reject("validation-no-possible-advantage")
+                return
             if not report["complete"]:
                 return
             rank = self.ranking(report)
@@ -245,17 +273,27 @@ class Cycle:
             raise ValueError("Unknown experiment phase")
         return True
 
-    def run(self, minutes):
-        deadline = time.monotonic() + minutes * 60
-        while not learn.STOP and time.monotonic() < deadline:
-            if self.step((deadline - time.monotonic()) / 60) is False:
+    def run(self, minutes=None, games=None):
+        if minutes is None and games is None:
+            raise ValueError("A game or time limit is required")
+        self.game_budget = GameBudget(games)
+        deadline = deadline_for(minutes)
+        while not learn.STOP and not self.game_budget.exhausted and time.monotonic() < deadline:
+            event_output({"event": "cycle-phase", "phase": self.state["phase"],
+                          "gamesRemaining": self.game_budget.remaining,
+                          "minutesRemaining": round(max(0, deadline - time.monotonic()) / 60, 2) if minutes is not None else None}, self.json_output)
+            if self.step((deadline - time.monotonic()) / 60 if minutes is not None else None) is False:
                 break
-        return status(self.directory, self.config["registry"])
+        result = status(self.directory, self.config["registry"])
+        result["sessionBudget"] = {"gamesRequested": games, "gamesCompleted": self.game_budget.used,
+                                   "gamesRemaining": self.game_budget.remaining, "minutesRequested": minutes}
+        return result
 
 
 def run_cycle(args):
+    event_output({"event": "cycle-start", "run": str(Path(args.run).resolve()), "minutes": args.minutes, "games": getattr(args, "games", None)}, getattr(args, "json", False))
     controller = Cycle(args)
     try:
-        print(json.dumps(controller.run(args.minutes)))
+        print_status(controller.run(args.minutes, getattr(args, "games", None)), getattr(args, "json", False))
     finally:
         controller.close()

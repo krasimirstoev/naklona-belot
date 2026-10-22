@@ -1,0 +1,1698 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "preserve-short-trump-train",
+      "topic": "preserve-short-trump",
+      "split": "train",
+      "sourceSeed": 2,
+      "baseId": "deal-2",
+      "hands": [
+        [
+          "H-8",
+          "S-10",
+          "H-A",
+          "H-9",
+          "D-Q",
+          "C-9",
+          "D-A",
+          "H-7"
+        ],
+        [
+          "C-J",
+          "S-J",
+          "C-K",
+          "S-8",
+          "C-7",
+          "D-J",
+          "D-10",
+          "S-Q"
+        ],
+        [
+          "D-8",
+          "C-8",
+          "S-9",
+          "S-A",
+          "D-7",
+          "C-10",
+          "H-J",
+          "H-Q"
+        ],
+        [
+          "H-10",
+          "H-K",
+          "D-9",
+          "S-K",
+          "S-7",
+          "C-Q",
+          "D-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "D-J"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "C-9"
+        },
+        {
+          "type": "play",
+          "card": "C-7"
+        },
+        {
+          "type": "play",
+          "card": "C-10"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        },
+        {
+          "type": "play",
+          "card": "S-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "S-A"
+        },
+        {
+          "type": "play",
+          "card": "S-K"
+        },
+        {
+          "type": "play",
+          "card": "S-10"
+        },
+        {
+          "type": "play",
+          "card": "S-J"
+        },
+        {
+          "type": "play",
+          "card": "S-9"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "H-9"
+        },
+        {
+          "type": "play",
+          "card": "S-8"
+        }
+      ],
+      "preferredCards": [
+        "D-Q"
+      ],
+      "rationale": "Имаме кратък коз и празна странична боя за бъдещо цакане; предпочитаме допустима странична карта без установен риск от цакане."
+    },
+    {
+      "id": "preserve-short-trump-control",
+      "topic": "preserve-short-trump",
+      "split": "control",
+      "sourceSeed": 3,
+      "baseId": "deal-3",
+      "hands": [
+        [
+          "C-8",
+          "S-Q",
+          "D-10",
+          "D-Q",
+          "H-Q",
+          "S-8",
+          "C-10",
+          "S-K"
+        ],
+        [
+          "S-J",
+          "H-9",
+          "C-K",
+          "C-Q",
+          "C-9",
+          "C-7",
+          "D-8",
+          "H-7"
+        ],
+        [
+          "D-7",
+          "H-10",
+          "S-7",
+          "D-A",
+          "D-J",
+          "H-A",
+          "D-9",
+          "H-K"
+        ],
+        [
+          "C-J",
+          "H-J",
+          "S-A",
+          "D-K",
+          "S-10",
+          "S-9",
+          "H-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "C-9"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "D-K"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "D-8"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "S-J"
+        }
+      ],
+      "preferredCards": [
+        "S-A",
+        "S-10",
+        "S-9"
+      ],
+      "rationale": "Имаме кратък коз и празна странична боя за бъдещо цакане; предпочитаме допустима странична карта без установен риск от цакане."
+    },
+    {
+      "id": "cheap-force-train",
+      "topic": "cheap-force",
+      "split": "train",
+      "sourceSeed": 5,
+      "baseId": "deal-5",
+      "hands": [
+        [
+          "D-Q",
+          "C-K",
+          "C-7",
+          "H-Q",
+          "H-9",
+          "C-10",
+          "H-A",
+          "H-10"
+        ],
+        [
+          "S-K",
+          "H-8",
+          "D-7",
+          "S-J",
+          "S-Q",
+          "C-8",
+          "C-Q",
+          "D-J"
+        ],
+        [
+          "D-9",
+          "C-J",
+          "H-7",
+          "D-K",
+          "C-9",
+          "D-8",
+          "H-J",
+          "S-7"
+        ],
+        [
+          "D-A",
+          "S-10",
+          "D-10",
+          "S-8",
+          "S-9",
+          "S-A",
+          "H-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "C-K"
+        },
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "D-J"
+        },
+        {
+          "type": "play",
+          "card": "D-8"
+        },
+        {
+          "type": "play",
+          "card": "S-A"
+        },
+        {
+          "type": "play",
+          "card": "H-Q"
+        },
+        {
+          "type": "play",
+          "card": "S-J"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "C-10"
+        },
+        {
+          "type": "play",
+          "card": "C-Q"
+        },
+        {
+          "type": "play",
+          "card": "C-9"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "H-10"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        }
+      ],
+      "preferredCards": [
+        "C-7"
+      ],
+      "rationale": "Противник с доказана липсваща боя и възможен коз ще трябва да цака; даваме най-много четири картови точки."
+    },
+    {
+      "id": "exhausted-trumps-train",
+      "topic": "exhausted-trumps",
+      "split": "train",
+      "sourceSeed": 6,
+      "baseId": "deal-6",
+      "hands": [
+        [
+          "C-7",
+          "S-A",
+          "H-A",
+          "D-J",
+          "S-9",
+          "H-8",
+          "D-10",
+          "H-Q"
+        ],
+        [
+          "H-10",
+          "C-8",
+          "S-J",
+          "H-J",
+          "S-Q",
+          "D-Q",
+          "C-10",
+          "S-7"
+        ],
+        [
+          "H-9",
+          "H-7",
+          "D-K",
+          "C-Q",
+          "C-K",
+          "C-9",
+          "D-9",
+          "S-K"
+        ],
+        [
+          "C-J",
+          "D-A",
+          "D-7",
+          "H-K",
+          "D-8",
+          "S-10",
+          "S-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "S-A"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "S-K"
+        },
+        {
+          "type": "play",
+          "card": "S-8"
+        },
+        {
+          "type": "play",
+          "card": "C-7"
+        },
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "C-9"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "D-J"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "D-K"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        },
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "H-7"
+        },
+        {
+          "type": "play",
+          "card": "H-10"
+        },
+        {
+          "type": "play",
+          "card": "H-9"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "H-Q"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "S-J"
+        }
+      ],
+      "preferredCards": [
+        "S-9"
+      ],
+      "rationale": "Нито един оставащ коз не може да е у противниците; предпочитаме странична боя."
+    },
+    {
+      "id": "exhausted-trumps-control",
+      "topic": "exhausted-trumps",
+      "split": "control",
+      "sourceSeed": 7,
+      "baseId": "deal-7",
+      "hands": [
+        [
+          "S-A",
+          "C-10",
+          "H-8",
+          "H-J",
+          "D-K",
+          "D-10",
+          "H-Q",
+          "H-K"
+        ],
+        [
+          "H-10",
+          "D-A",
+          "S-K",
+          "C-K",
+          "D-J",
+          "S-7",
+          "S-10",
+          "D-8"
+        ],
+        [
+          "C-9",
+          "D-7",
+          "H-7",
+          "D-Q",
+          "S-Q",
+          "H-A",
+          "C-8",
+          "S-9"
+        ],
+        [
+          "C-7",
+          "C-Q",
+          "C-J",
+          "D-9",
+          "S-8",
+          "H-9",
+          "S-J",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "H-10"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        },
+        {
+          "type": "play",
+          "card": "H-9"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "H-7"
+        },
+        {
+          "type": "play",
+          "card": "C-7"
+        }
+      ],
+      "preferredCards": [
+        "S-A",
+        "C-10",
+        "D-K",
+        "D-10"
+      ],
+      "rationale": "Нито един оставащ коз не може да е у противниците; предпочитаме странична боя."
+    },
+    {
+      "id": "cheap-force-control",
+      "topic": "cheap-force",
+      "split": "control",
+      "sourceSeed": 12,
+      "baseId": "deal-12",
+      "hands": [
+        [
+          "C-9",
+          "H-10",
+          "H-9",
+          "S-J",
+          "H-8",
+          "H-J",
+          "C-Q",
+          "C-K"
+        ],
+        [
+          "S-7",
+          "S-K",
+          "S-9",
+          "S-A",
+          "D-7",
+          "D-K",
+          "D-A",
+          "D-Q"
+        ],
+        [
+          "H-A",
+          "S-10",
+          "C-7",
+          "S-Q",
+          "S-8",
+          "H-7",
+          "D-9",
+          "C-10"
+        ],
+        [
+          "C-J",
+          "D-J",
+          "D-8",
+          "H-Q",
+          "H-K",
+          "C-8",
+          "D-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "C-K"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "C-10"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "D-8"
+        },
+        {
+          "type": "play",
+          "card": "H-8"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "C-Q"
+        },
+        {
+          "type": "play",
+          "card": "S-9"
+        },
+        {
+          "type": "play",
+          "card": "C-7"
+        },
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "C-9"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-7"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        },
+        {
+          "type": "play",
+          "card": "S-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-Q"
+        },
+        {
+          "type": "play",
+          "card": "S-J"
+        },
+        {
+          "type": "play",
+          "card": "S-A"
+        }
+      ],
+      "preferredCards": [
+        "D-J"
+      ],
+      "rationale": "Противник с доказана липсваща боя и възможен коз ще трябва да цака; даваме най-много четири картови точки."
+    },
+    {
+      "id": "partner-winning-exception-train",
+      "topic": "partner-winning-exception",
+      "split": "train",
+      "sourceSeed": 15,
+      "baseId": "deal-15",
+      "hands": [
+        [
+          "H-9",
+          "S-7",
+          "C-8",
+          "S-8",
+          "D-J",
+          "C-7",
+          "D-Q",
+          "S-10"
+        ],
+        [
+          "D-K",
+          "D-A",
+          "S-K",
+          "H-7",
+          "H-J",
+          "C-10",
+          "D-8",
+          "H-Q"
+        ],
+        [
+          "H-8",
+          "S-J",
+          "S-Q",
+          "D-7",
+          "S-A",
+          "H-K",
+          "D-9",
+          "C-K"
+        ],
+        [
+          "C-J",
+          "D-10",
+          "S-9",
+          "H-A",
+          "C-Q",
+          "C-9",
+          "H-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "C-7"
+        },
+        {
+          "type": "play",
+          "card": "C-10"
+        },
+        {
+          "type": "play",
+          "card": "C-K"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "C-Q"
+        },
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "H-8"
+        },
+        {
+          "type": "play",
+          "card": "S-J"
+        },
+        {
+          "type": "play",
+          "card": "S-9"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "S-K"
+        },
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "H-K"
+        },
+        {
+          "type": "play",
+          "card": "H-10"
+        },
+        {
+          "type": "play",
+          "card": "H-9"
+        },
+        {
+          "type": "play",
+          "card": "D-K"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "D-J"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        }
+      ],
+      "preferredCards": [
+        "S-8"
+      ],
+      "rationale": "Отборът на следващия противник вече печели; липсващата му боя не го задължава да цака. Не можем да вземем и избираме евтин ход."
+    },
+    {
+      "id": "partner-winning-exception-control",
+      "topic": "partner-winning-exception",
+      "split": "control",
+      "sourceSeed": 17,
+      "baseId": "deal-17",
+      "hands": [
+        [
+          "C-9",
+          "D-K",
+          "S-Q",
+          "D-8",
+          "C-K",
+          "S-A",
+          "D-10",
+          "D-J"
+        ],
+        [
+          "H-K",
+          "H-Q",
+          "D-9",
+          "S-9",
+          "S-10",
+          "C-10",
+          "C-Q",
+          "H-8"
+        ],
+        [
+          "S-7",
+          "C-7",
+          "S-K",
+          "H-J",
+          "D-A",
+          "S-J",
+          "H-10",
+          "D-7"
+        ],
+        [
+          "H-7",
+          "H-9",
+          "H-A",
+          "C-8",
+          "C-J",
+          "D-Q",
+          "S-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "S-A"
+        },
+        {
+          "type": "play",
+          "card": "S-10"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "S-8"
+        },
+        {
+          "type": "play",
+          "card": "D-8"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-J"
+        },
+        {
+          "type": "play",
+          "card": "H-7"
+        },
+        {
+          "type": "play",
+          "card": "C-9"
+        },
+        {
+          "type": "play",
+          "card": "H-8"
+        },
+        {
+          "type": "play",
+          "card": "C-7"
+        },
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "C-K"
+        },
+        {
+          "type": "play",
+          "card": "C-10"
+        },
+        {
+          "type": "play",
+          "card": "C-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-10"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "S-K"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        },
+        {
+          "type": "play",
+          "card": "S-Q"
+        },
+        {
+          "type": "play",
+          "card": "S-9"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        }
+      ],
+      "preferredCards": [
+        "D-J"
+      ],
+      "rationale": "Отборът на следващия противник вече печели; липсващата му боя не го задължава да цака. Не можем да вземем и избираме евтин ход."
+    },
+    {
+      "id": "draw-control-train",
+      "topic": "draw-control",
+      "split": "train",
+      "sourceSeed": 22,
+      "baseId": "deal-22",
+      "hands": [
+        [
+          "C-10",
+          "S-8",
+          "D-10",
+          "H-K",
+          "H-J",
+          "H-A",
+          "H-8",
+          "S-7"
+        ],
+        [
+          "C-Q",
+          "D-J",
+          "D-K",
+          "D-8",
+          "S-Q",
+          "H-7",
+          "H-10",
+          "H-Q"
+        ],
+        [
+          "C-K",
+          "C-J",
+          "S-A",
+          "S-J",
+          "C-7",
+          "S-10",
+          "C-8",
+          "D-Q"
+        ],
+        [
+          "H-9",
+          "D-9",
+          "S-K",
+          "D-A",
+          "C-9",
+          "S-9",
+          "D-7",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [],
+      "preferredCards": [
+        "H-J"
+      ],
+      "rationale": "Водим коз без по-силен неизвестен коз, имаме продължение и противниковите козове не са изчерпани; няма установена нужда да пазим кратък коз."
+    },
+    {
+      "id": "costly-sacrifice-train",
+      "topic": "costly-sacrifice",
+      "split": "train",
+      "sourceSeed": 25,
+      "baseId": "deal-25",
+      "hands": [
+        [
+          "C-J",
+          "D-A",
+          "S-7",
+          "D-K",
+          "D-10",
+          "H-9",
+          "S-8",
+          "C-7"
+        ],
+        [
+          "S-Q",
+          "H-Q",
+          "H-A",
+          "D-9",
+          "S-9",
+          "C-Q",
+          "D-Q",
+          "C-10"
+        ],
+        [
+          "S-K",
+          "S-A",
+          "H-10",
+          "C-9",
+          "H-J",
+          "D-7",
+          "C-8",
+          "H-8"
+        ],
+        [
+          "S-10",
+          "C-K",
+          "D-8",
+          "D-J",
+          "H-K",
+          "S-J",
+          "H-7",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-K"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "D-8"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "C-8"
+        },
+        {
+          "type": "play",
+          "card": "D-J"
+        }
+      ],
+      "preferredCards": [
+        "C-J",
+        "S-7",
+        "S-8",
+        "C-7"
+      ],
+      "rationale": "Има ход с условно задължение за цакане, но жертва поне десет точки; предпочитаме евтина странична алтернатива без установен риск от цакане."
+    },
+    {
+      "id": "draw-control-control",
+      "topic": "draw-control",
+      "split": "control",
+      "sourceSeed": 29,
+      "baseId": "deal-29",
+      "hands": [
+        [
+          "C-8",
+          "H-K",
+          "D-K",
+          "C-J",
+          "H-7",
+          "D-J",
+          "S-8",
+          "S-7"
+        ],
+        [
+          "S-A",
+          "S-Q",
+          "D-9",
+          "H-8",
+          "C-9",
+          "C-K",
+          "C-Q",
+          "S-K"
+        ],
+        [
+          "D-Q",
+          "C-10",
+          "D-A",
+          "C-7",
+          "D-10",
+          "D-7",
+          "H-10",
+          "H-Q"
+        ],
+        [
+          "S-9",
+          "S-10",
+          "H-A",
+          "D-8",
+          "H-9",
+          "H-J",
+          "S-J",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "H-7"
+        },
+        {
+          "type": "play",
+          "card": "H-8"
+        },
+        {
+          "type": "play",
+          "card": "H-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        }
+      ],
+      "preferredCards": [
+        "H-9",
+        "H-J"
+      ],
+      "rationale": "Водим коз без по-силен неизвестен коз, имаме продължение и противниковите козове не са изчерпани; няма установена нужда да пазим кратък коз."
+    },
+    {
+      "id": "costly-sacrifice-control",
+      "topic": "costly-sacrifice",
+      "split": "control",
+      "sourceSeed": 137,
+      "baseId": "deal-137",
+      "hands": [
+        [
+          "H-7",
+          "D-Q",
+          "S-A",
+          "S-9",
+          "H-A",
+          "D-10",
+          "S-J",
+          "S-8"
+        ],
+        [
+          "D-J",
+          "S-7",
+          "H-K",
+          "H-8",
+          "H-J",
+          "C-J",
+          "C-10",
+          "D-9"
+        ],
+        [
+          "D-K",
+          "S-10",
+          "C-7",
+          "C-K",
+          "S-Q",
+          "C-8",
+          "H-10",
+          "S-K"
+        ],
+        [
+          "D-A",
+          "C-A",
+          "C-9",
+          "C-Q",
+          "D-7",
+          "H-9",
+          "H-Q",
+          "D-8"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "S-A"
+        },
+        {
+          "type": "play",
+          "card": "S-7"
+        },
+        {
+          "type": "play",
+          "card": "S-Q"
+        },
+        {
+          "type": "play",
+          "card": "H-Q"
+        },
+        {
+          "type": "play",
+          "card": "C-A"
+        },
+        {
+          "type": "play",
+          "card": "H-A"
+        },
+        {
+          "type": "play",
+          "card": "C-J"
+        },
+        {
+          "type": "play",
+          "card": "C-K"
+        },
+        {
+          "type": "play",
+          "card": "D-Q"
+        },
+        {
+          "type": "play",
+          "card": "D-9"
+        },
+        {
+          "type": "play",
+          "card": "D-K"
+        },
+        {
+          "type": "play",
+          "card": "D-A"
+        },
+        {
+          "type": "play",
+          "card": "D-7"
+        },
+        {
+          "type": "play",
+          "card": "D-10"
+        },
+        {
+          "type": "play",
+          "card": "D-J"
+        },
+        {
+          "type": "play",
+          "card": "H-10"
+        }
+      ],
+      "preferredCards": [
+        "C-7",
+        "C-8"
+      ],
+      "rationale": "Има ход с условно задължение за цакане, но жертва поне десет точки; предпочитаме евтина странична алтернатива без установен риск от цакане."
+    }
+  ]
+}

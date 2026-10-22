@@ -168,7 +168,9 @@ test('hard endgame counts the last trick and resolves equal simulations using ta
   const d = decideHardCard(v, 2000, seeded(2));
   assert.equal(d.card, 'H-J');
   assert.ok(d.reasons.some(r => r.id === 'search.sampled-points'));
-  assert.deepEqual(d.candidates.map(c => c.score), [44, 44]); // Nine + jack + last trick.
+  assert.deepEqual(d.candidates.map(c => c.score), [252, 252]); // Общият резултат включва капо и последната взятка.
+  assert.ok(d.search?.completedBatches);
+  assert.ok(d.candidates.every(c=>c.utility?.[1]===1));
   assert.deepEqual(v, before);
 });
 

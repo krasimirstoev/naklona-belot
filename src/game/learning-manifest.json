@@ -1,0 +1,154 @@
+{
+  "encodingVersion": 2,
+  "modelVersion": 1,
+  "hiddenSizes": [
+    128,
+    128
+  ],
+  "cards": "C,D,H,S; 7,8,9,10,J,Q,K,A",
+  "seats": "self,next opponent,partner,other opponent",
+  "observation": [
+    {
+      "name": "public_state",
+      "size": 60,
+      "meaning": "Own card bits32, relative hand counts4 /8, bidding/playing2, relative dealer4, null/C/D/H/S/NT/AT contract7, relative declarer5 (null4), multiplier 1/2/4 onehot3, own/opponent scores2 /151, hanging /151"
+    },
+    {
+      "name": "ordered_calls",
+      "size": 1120,
+      "meaning": "80 chronological slots: present1, relative player4, bid9 (pass C D H S NT AT contra recontra)"
+    },
+    {
+      "name": "card_history",
+      "size": 224,
+      "meaning": "32 card-index slots: relative player4, (play ordinal+1)/32, trick index/8, present1; absent all zero"
+    },
+    {
+      "name": "current_trick",
+      "size": 148,
+      "meaning": "4 ordered slots: card32, relative player4, present1; absent all zero"
+    },
+    {
+      "name": "completed_winners",
+      "size": 40,
+      "meaning": "8 chronological trick slots, relative winner onehot5 (absent4)"
+    },
+    {
+      "name": "announcements",
+      "size": 144,
+      "meaning": "4 relative player slots: public union cards32, sequence count/8, four count/8, total value/200, total strength/100"
+    },
+    {
+      "name": "belots",
+      "size": 16,
+      "meaning": "Relative player major, C D H S; public belot bits"
+    },
+    {
+      "name": "play_applicable",
+      "size": 1,
+      "meaning": "1 only during play; all subsequent observation facts zero during bidding"
+    },
+    {
+      "name": "void_suits",
+      "size": 16,
+      "meaning": "Relative seat major, C D H S; proven absence"
+    },
+    {
+      "name": "possible_owners",
+      "size": 128,
+      "meaning": "Card major, relative seat; possibility only, including own cards, played cards zero"
+    },
+    {
+      "name": "remaining_trumps",
+      "size": 32,
+      "meaning": "Remaining trump card bits; NT none, AT all"
+    },
+    {
+      "name": "highest_in_suit",
+      "size": 32,
+      "meaning": "Highest remaining per suit; not guaranteed to win a trick"
+    },
+    {
+      "name": "own_unbeaten_in_suit",
+      "size": 32,
+      "meaning": "Own cards without stronger unknown in suit; can still be ruffed"
+    },
+    {
+      "name": "current_winner",
+      "size": 5,
+      "meaning": "Relative seat one-hot; index4 empty trick"
+    }
+  ],
+  "action": [
+    {
+      "name": "action_v1",
+      "size": 81,
+      "meaning": "Card32, bid9, belot1, declared sequence union32, fours Q K 10 A 9 J6, value/200"
+    },
+    {
+      "name": "play_applicable",
+      "size": 1,
+      "meaning": "All following action facts zero unless playing"
+    },
+    {
+      "name": "suit_trump",
+      "size": 1,
+      "meaning": "Proposed card is trump in a suit contract"
+    },
+    {
+      "name": "side_suit",
+      "size": 1,
+      "meaning": "Nontrump in a suit contract"
+    },
+    {
+      "name": "currently_wins",
+      "size": 1,
+      "meaning": "Self wins immediately after playing; later players may win"
+    },
+    {
+      "name": "partner_winning",
+      "size": 1,
+      "meaning": "Partner leads before playing"
+    },
+    {
+      "name": "conditional_forced_ruff",
+      "size": 4,
+      "meaning": "Relative opponent mask: if holds trump, must ruff; intervening players cannot remove obligation"
+    },
+    {
+      "name": "proven_trump_forcing",
+      "size": 4,
+      "meaning": "Subset of forced-ruff mask with a proven held trump"
+    },
+    {
+      "name": "possible_enemy_ruff",
+      "size": 1,
+      "meaning": "Later opponent known void in actual led suit with possible trump, current winning card nontrump; possibility only"
+    },
+    {
+      "name": "stakes",
+      "size": 1,
+      "meaning": "Current trick plus proposed card points /162"
+    },
+    {
+      "name": "preserve_own_ruff",
+      "size": 1,
+      "meaning": "Own 1-2 trumps, own side void and remaining possible enemy side cards"
+    },
+    {
+      "name": "preserve_partner_ruff",
+      "size": 1,
+      "meaning": "Partner one proven trump and side void with possible enemy side cards"
+    },
+    {
+      "name": "trump_control",
+      "size": 1,
+      "meaning": "Proposed trump has no stronger unknown trump and own trump length >=2"
+    },
+    {
+      "name": "possible_enemy_trumps",
+      "size": 1,
+      "meaning": "Number of remaining trumps that can belong to opposing team /8"
+    }
+  ]
+}

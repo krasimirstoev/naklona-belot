@@ -1,12 +1,15 @@
+import manifest from './learning-manifest.json' with { type: 'json' };
+import { buildKnowledge, type BotKnowledge } from './bot-knowledge.js';
+import { analyzeCardTactics, analyzeTacticalContext } from './bot-tactics.js';
 import { rank, suit } from './engine.js';
 import { CONTRACTS, RANKS, SUITS, type Action, type Bid, type Card, type View } from './types.js';
 
-export const ENCODING_VERSION = 1;
-export const MODEL_VERSION = 1;
+export const ENCODING_VERSION = manifest.encodingVersion;
+export const MODEL_VERSION = manifest.modelVersion;
 export const BIDS: Bid[] = ['pass', ...CONTRACTS, 'contra', 'recontra'];
 const CALL_SLOTS = 80; // At most 18 non-pass calls, three passes before each, then three: 75.
-export const OBSERVATION_SIZE = 1752;
-export const ACTION_SIZE = 81;
+export const OBSERVATION_SIZE = manifest.observation.reduce((n,b) => n+b.size,0);
+export const ACTION_SIZE = manifest.action.reduce((n,b) => n+b.size,0);
 export const INPUT_SIZE = OBSERVATION_SIZE + ACTION_SIZE;
 const fourRanks = ['Q', 'K', '10', 'A', '9', 'J'];
 const cardIndex = (c: Card) => SUITS.indexOf(suit(c)) * 8 + RANKS.indexOf(rank(c));
@@ -35,7 +38,7 @@ export function learningActions(v: View): Action[] {
 export function actionKey(a: Action): string {
   return a.type === 'play' ? JSON.stringify([a.type, a.card, [...(a.declare ?? [])].sort(), !!a.belot]) : JSON.stringify(a);
 }
-export function encodeAction(v: View, a: Action): number[] {
+export function encodeAction(v: View, a: Action, knowledge = v.phase === 'playing' ? buildKnowledge(v) : undefined, facts?: ReturnType<typeof analyzeCardTactics>): number[] {
   const sequence: Card[] = [], fours: number[] = Array(6).fill(0);
   let value = 0;
   if (a.type === 'play') for (const id of a.declare ?? []) {
@@ -45,12 +48,13 @@ export function encodeAction(v: View, a: Action): number[] {
     if (d.kind === 'sequence') sequence.push(...d.cards);
     else fours[fourRanks.indexOf(rank(d.cards[0]))] = 1;
   }
+  const extra = a.type === 'play' && knowledge ? actionConditions(v, a.card, knowledge, facts) : Array(19).fill(0);
   return [...cardBits(a.type === 'play' ? [a.card] : []), ...oneHot(9, a.type === 'bid' ? BIDS.indexOf(a.bid) : -1),
-    +(a.type === 'play' && !!a.belot), ...cardBits(sequence), ...fours, value / 200];
+    +(a.type === 'play' && !!a.belot), ...cardBits(sequence), ...fours, value / 200, ...extra];
 }
 
 /** Only View fields; no Game, hidden hands, stock, arbitrary text or historic private declarations. */
-export function encodeObservation(v: View): number[] {
+export function encodeObservation(v: View, knowledge = v.phase === 'playing' ? buildKnowledge(v) : undefined): number[] {
   if (v.calls.length > CALL_SLOTS) throw new Error('Bidding history exceeds encoding capacity');
   const rel = (p: number) => relative(p, v.seat);
   const out = [...cardBits(v.hand), ...Array.from({ length: 4 }, (_, i) => v.counts[(v.seat + i) % 4] / 8),
@@ -79,8 +83,35 @@ export function encodeObservation(v: View): number[] {
       announcements.reduce((n, a) => n + a.strength, 0) / 100);
   }
   for (let i = 0; i < 4; i++) for (const s of SUITS) out.push(+v.belots.some(b => rel(b.player) === i && b.suit === s));
+  if (knowledge) {
+    const k = knowledge;
+    out.push(1);
+    for (let i=0;i<4;i++) for (const s of SUITS) out.push(+k.voidSuits[(v.seat+i)%4].includes(s));
+    for (const s of SUITS) for (const r of RANKS) for (let i=0;i<4;i++) out.push(+(k.possibleOwners[`${s}-${r}`]?.includes((v.seat+i)%4) ?? false));
+    out.push(...cardBits(k.remainingTrumps), ...cardBits(Object.values(k.highestRemaining).filter((c): c is Card => !!c)), ...cardBits(k.masters),
+      ...oneHot(5, k.currentWinner === null ? 4 : rel(k.currentWinner)));
+  } else out.push(...Array(OBSERVATION_SIZE-1752).fill(0));
   if (out.length !== OBSERVATION_SIZE || out.some(x => !Number.isFinite(x))) throw new Error('Invalid observation encoding');
   return out;
+}
+function actionConditions(v: View, card: Card, k: BotKnowledge, facts = analyzeCardTactics(v, card, k)): number[] {
+  const relMask = (players: number[]) => Array.from({length:4}, (_,i) => +players.includes((v.seat+i)%4));
+  return [1, +facts.trump, +(facts.suitContract && !facts.trump), +facts.wins, +facts.partnerWinning,
+    ...relMask(facts.targets), ...relMask(facts.certainTargets), +facts.ruffRisk, facts.stakes/162,
+    +(facts.suitContract && !!facts.ruffSuit && facts.trumps.length>0 && facts.trumps.length<=2),
+    +(facts.suitContract && facts.preservePartner), +(facts.trump && facts.control), facts.enemyTrumps.length/8];
+}
+/** One public knowledge reconstruction and one analysis per distinct card, shared by announcement variants. */
+export function prepareLearningDecision(v: View) {
+  const knowledge = v.phase === 'playing' ? buildKnowledge(v) : undefined;
+  const actions = learningActions(v);
+  const context = knowledge ? analyzeTacticalContext(v,knowledge) : undefined;
+  const cache = new Map<Card, ReturnType<typeof analyzeCardTactics>>();
+  const actionFeatures = actions.map(a => {
+    if (a.type === 'play' && knowledge && !cache.has(a.card)) cache.set(a.card, analyzeCardTactics(v,a.card,knowledge,context));
+    return encodeAction(v,a,knowledge,a.type === 'play' ? cache.get(a.card) : undefined);
+  });
+  return {actions, observation:encodeObservation(v,knowledge), actionFeatures, knowledge};
 }
 export interface Layer { weight: number[][]; bias: number[] }
 export interface LearnedModel {
@@ -120,8 +151,8 @@ export function scoreActions(model: LearnedModel, observation: number[], actions
   });
 }
 export function learnedAction(v: View, model: LearnedModel): Action {
-  const actions = learningActions(v);
+  const {actions, observation, actionFeatures} = prepareLearningDecision(v);
   if (!actions.length) throw new Error('No learned action available');
-  const scores = scoreActions(model, encodeObservation(v), actions.map(a => encodeAction(v, a)));
+  const scores = scoreActions(model, observation, actionFeatures);
   return actions[scores.reduce((best, score, i) => score > scores[best] ? i : best, 0)];
 }

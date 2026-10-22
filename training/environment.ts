@@ -1,9 +1,10 @@
+import {scenarioExamples, scenarioReport, scenarioDigest} from './scenarios.js';
 import { createInterface } from 'node:readline';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { applyAction, newGame, view } from '../src/game/engine.js';
 import { basicAction, hardAction } from '../src/game/bots.js';
-import { ACTION_SIZE, ENCODING_VERSION, OBSERVATION_SIZE, actionKey, encodeAction, encodeObservation, learnedAction, learningActions, scoreActions, validateModel, type LearnedModel } from '../src/game/learning.js';
+import { ACTION_SIZE, ENCODING_VERSION, OBSERVATION_SIZE, actionKey, prepareLearningDecision, learnedAction, learningActions, scoreActions, validateModel, type LearnedModel } from '../src/game/learning.js';
 import { referenceFingerprint as getReferenceFingerprint } from '../src/server/bot-reference.js';
 import { activeModels, activateModel, modelPath, rollbackModel } from '../src/server/model-registry.js';
 import { loadApprovedModel, readModel, validateApproval, type ModelApproval } from '../src/server/learned-bot.js';
@@ -25,11 +26,11 @@ function observation() {
     const won = game.scores[0] > game.scores[1] ? 0 : 1;
     return { done: true, rewards: won === 0 ? [1, -1] : [-1, 1], scores: game.scores, results: game.results };
   }
-  const v = view(game, game.turn), actions = learningActions(v);
-  return { done: false, seat: v.seat, team: v.seat % 2, observation: encodeObservation(v), actions,
-    actionFeatures: actions.map(a => encodeAction(v, a)), phase: v.phase, contract: v.contract };
+  const v = view(game, game.turn), {actions, observation, actionFeatures} = prepareLearningDecision(v);
+  return { done: false, seat: v.seat, team: v.seat % 2, observation, actions,
+    actionFeatures, phase: v.phase, contract: v.contract };
 }
-function info() { return { version: 1, encodingVersion: ENCODING_VERSION, observationSize: OBSERVATION_SIZE, actionSize: ACTION_SIZE, referenceFingerprint }; }
+function info() { return { version: 1, encodingVersion: ENCODING_VERSION, observationSize: OBSERVATION_SIZE, actionSize: ACTION_SIZE, scenarioDigest, referenceFingerprint }; }
 function recommendation(policy: string, budgetMs = 220) {
   if (!game) throw new Error('Environment not initialized');
   const v = view(game, game.turn), actions = learningActions(v);
@@ -58,6 +59,8 @@ function step(index: number) {
 function command(c: Record<string, any>): unknown {
   switch (c.command) {
     case 'info': return info();
+    case 'trainingScenarios': return scenarioExamples();
+    case 'scenarioReport': if (!model) throw Error('Model not loaded'); return scenarioReport(model);
     case 'reset': {
       if (!(typeof c.namespace==='string' && /^(train-collect-v1|train-selfplay-v1|profile-v1|test-v1|(?:validation-v1|final-v1)(?::[a-f0-9]{32})?)$/.test(c.namespace)) || !Number.isSafeInteger(c.seed) || c.seed < 0) throw new Error('Invalid seed namespace');
       namespace = c.namespace; seed = c.seed;

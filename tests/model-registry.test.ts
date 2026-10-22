@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { INPUT_SIZE, OBSERVATION_SIZE, ACTION_SIZE } from '../src/game/learning.js';
+import { ENCODING_VERSION, INPUT_SIZE, OBSERVATION_SIZE, ACTION_SIZE } from '../src/game/learning.js';
 import { newGame, view } from '../src/game/engine.js';
 import { createApp } from '../src/server/app.js';
 import { Store } from '../src/server/storage.js';
@@ -12,8 +12,12 @@ import { modelDigest, workerAction, type EvaluationReport, type ModelApproval } 
 import { activateModel, activeModels, modelForNewMatch, modelPath, registerModel, rollbackModel } from '../src/server/model-registry.js';
 
 function qualified(path: string, variant: number, champion?: string) {
-  const model = {formatVersion:1,encodingVersion:1,observationSize:OBSERVATION_SIZE,actionSize:ACTION_SIZE,hiddenSizes:[128,128],
+  const model = {formatVersion:1,encodingVersion:ENCODING_VERSION,observationSize:OBSERVATION_SIZE,actionSize:ACTION_SIZE,hiddenSizes:[128,128],
     layers:[INPUT_SIZE,128,128].map((n,i)=>({weight:Array.from({length:i===2?1:128},()=>Array(n).fill(0)),bias:Array(i===2?1:128).fill(i===2?variant:0)}))};
+  if(variant){
+    model.layers[0].weight[0][OBSERVATION_SIZE+38]=1; // AT candidate feature.
+    model.layers[1].weight[0][0]=1;model.layers[2].weight[0][0]=1;
+  }
   const bytes=JSON.stringify(model),id=modelDigest(bytes);
   const report=(partner:'hard'|'medium'):EvaluationReport=>({version:1,modelSha256:id,referenceFingerprint:referenceFingerprint(),
     split:'final',namespace:'final-v1:'+('a'.repeat(32)),partner,seedsRequested:partner==='hard'?1000:200,
@@ -93,8 +97,11 @@ test('pinned model ids survive activation and server restarts without entering p
     assert.equal(modelForNewMatch(registry,''),second.id);
     // The old match still resolves the original immutable weights.
     assert.ok(modelPath(pinned.botModelId!,registry).includes(first.id));
-    assert.equal(workerAction(view(pinned,0),modelPath(first.id,registry),first.id).type,'bid');
-    assert.equal(workerAction(view(pinned,0),modelPath(second.id,registry),first.id).type,'bid'); // Digest mismatch falls back.
+    const strong=view(pinned,0);strong.hand=['H-J','H-9','H-A','H-10','H-K'];
+    assert.deepEqual(workerAction(strong,modelPath(first.id,registry),first.id),{type:'bid',bid:'pass'});
+    assert.deepEqual(workerAction(strong,modelPath(second.id,registry),second.id),{type:'bid',bid:'AT'});
+    assert.deepEqual(workerAction(strong,modelPath(second.id,registry),first.id),{type:'bid',bid:'H'}); // Digest mismatch uses the actual hard policy.
+    assert.deepEqual(workerAction(strong,null),{type:'bid',bid:'H'});
     const medium=await app.inject({method:'POST',url:'/api/games',payload:{difficulty:'medium',requestId:'pinned-game-3'}});
     store=new Store(dbPath);assert.equal(store.load(medium.cookies[0].value)!.botModelId,null);store.close();
   }finally{await app.close();rmSync(dir,{recursive:true,force:true});}

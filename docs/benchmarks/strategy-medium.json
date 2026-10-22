@@ -1,0 +1,178 @@
+{
+  "referenceFingerprint": "82aefe95fcdd06c755ba0aac48acc9edface3363d73d279dcb2cf8adc0c9f55e",
+  "baselineFingerprint": "5a08b67ecabca32f6f1562da4580396c80378f0477de8d8f236c7ad301080a6d",
+  "description": "Сдвоени раздавания с разменени отбори; победа е изпълнен наш или провален чужд договор. Това не е оценка на цели мачове или наддаване.",
+  "a": "medium",
+  "b": "medium-before",
+  "seedCount": 128,
+  "seedStart": 500001,
+  "mode": "фиксирани сравнителни партиди",
+  "batches": 4,
+  "budgetMs": 10000,
+  "confidence": {
+    "mean": 0.5224609375,
+    "lower": 0.5117187500000001,
+    "upper": 0.5335286458333335,
+    "unit": "семе с всички договори и разменени отбори"
+  },
+  "contracts": [
+    {
+      "contract": "C",
+      "rounds": 256,
+      "wins": 128,
+      "ties": 2,
+      "declaringRounds": 128,
+      "contractsMade": 68,
+      "defendingRounds": 128,
+      "contractsDefeated": 60,
+      "gamePointDifference": 83,
+      "cardPointDifference": 916,
+      "capotsFor": 4,
+      "capotsAgainst": 5,
+      "lostHighCards": [
+        370,
+        388
+      ],
+      "unbeatenCardsCollected": [
+        1035,
+        1028
+      ]
+    },
+    {
+      "contract": "D",
+      "rounds": 256,
+      "wins": 132,
+      "ties": 3,
+      "declaringRounds": 128,
+      "contractsMade": 67,
+      "defendingRounds": 128,
+      "contractsDefeated": 65,
+      "gamePointDifference": 151,
+      "cardPointDifference": 644,
+      "capotsFor": 3,
+      "capotsAgainst": 3,
+      "lostHighCards": [
+        349,
+        350
+      ],
+      "unbeatenCardsCollected": [
+        1068,
+        1054
+      ]
+    },
+    {
+      "contract": "H",
+      "rounds": 256,
+      "wins": 133,
+      "ties": 1,
+      "declaringRounds": 128,
+      "contractsMade": 55,
+      "defendingRounds": 128,
+      "contractsDefeated": 78,
+      "gamePointDifference": 143,
+      "cardPointDifference": 292,
+      "capotsFor": 2,
+      "capotsAgainst": 3,
+      "lostHighCards": [
+        372,
+        371
+      ],
+      "unbeatenCardsCollected": [
+        1017,
+        1045
+      ]
+    },
+    {
+      "contract": "S",
+      "rounds": 256,
+      "wins": 128,
+      "ties": 3,
+      "declaringRounds": 128,
+      "contractsMade": 72,
+      "defendingRounds": 128,
+      "contractsDefeated": 56,
+      "gamePointDifference": 59,
+      "cardPointDifference": 524,
+      "capotsFor": 2,
+      "capotsAgainst": 1,
+      "lostHighCards": [
+        359,
+        359
+      ],
+      "unbeatenCardsCollected": [
+        1043,
+        1031
+      ]
+    },
+    {
+      "contract": "NT",
+      "rounds": 256,
+      "wins": 138,
+      "ties": 2,
+      "declaringRounds": 128,
+      "contractsMade": 74,
+      "defendingRounds": 128,
+      "contractsDefeated": 64,
+      "gamePointDifference": 434,
+      "cardPointDifference": 2588,
+      "capotsFor": 5,
+      "capotsAgainst": 5,
+      "lostHighCards": [
+        164,
+        191
+      ],
+      "unbeatenCardsCollected": [
+        1174,
+        1206
+      ]
+    },
+    {
+      "contract": "AT",
+      "rounds": 256,
+      "wins": 137,
+      "ties": 2,
+      "declaringRounds": 128,
+      "contractsMade": 72,
+      "defendingRounds": 128,
+      "contractsDefeated": 65,
+      "gamePointDifference": 466,
+      "cardPointDifference": 2706,
+      "capotsFor": 6,
+      "capotsAgainst": 4,
+      "lostHighCards": [
+        649,
+        753
+      ],
+      "unbeatenCardsCollected": [
+        1187,
+        1209
+      ]
+    }
+  ],
+  "computation": [
+    {
+      "policy": "medium",
+      "decisions": 24576,
+      "p50Ms": 0.25221700000111014,
+      "p95Ms": 0.5607579999996233,
+      "maxMs": 3.246907000000647,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    },
+    {
+      "policy": "medium-before",
+      "decisions": 24576,
+      "p50Ms": 0.23169400000006135,
+      "p95Ms": 0.4703620000000228,
+      "maxMs": 2.0099860000000263,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    }
+  ]
+}

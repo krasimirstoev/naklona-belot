@@ -101,7 +101,7 @@ export function roundedPair(raw: number[], contract: Contract, declarer: number)
   if(raw.every(n=>n%10===boundary)) out[raw[0]===raw[1]?declarer:raw[0]<raw[1]?0:1]++;
   return out;
 }
-export function calculateResult(g: Game): RoundResult {
+export function calculateResult(g: Pick<Game,'contract'|'declarer'|'multiplier'|'announcements'|'belots'|'tricks'|'scores'|'hanging'|'round'>): RoundResult {
   const contract=g.contract!, declaring=team(g.declarer!), defending=1-declaring;
   const cardPoints=[0,0],belotPoints=[0,0];
   for(const t of g.tricks) cardPoints[team(t.winner)]+=t.plays.reduce((n,p)=>n+points(p.card,contract),0);

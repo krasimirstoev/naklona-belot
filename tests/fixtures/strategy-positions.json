@@ -1,0 +1,2324 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "unsafe-partner-1",
+      "topic": "unsafe-partner",
+      "sourceSeed": 1,
+      "contract": "C",
+      "hands": [
+        [
+          "H-9",
+          "H-Q",
+          "S-8",
+          "C-K",
+          "S-9",
+          "D-7",
+          "C-Q",
+          "D-K"
+        ],
+        [
+          "D-J",
+          "S-A",
+          "C-10",
+          "H-8",
+          "S-7",
+          "C-7",
+          "D-Q",
+          "S-J"
+        ],
+        [
+          "H-K",
+          "D-9",
+          "H-10",
+          "H-7",
+          "C-J",
+          "D-8",
+          "C-8",
+          "H-J"
+        ],
+        [
+          "H-A",
+          "S-10",
+          "C-9",
+          "S-Q",
+          "S-K",
+          "D-A",
+          "D-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "C"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-8",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "S-7"
+      ],
+      "oldCard": "S-7",
+      "exampleCard": "S-7"
+    },
+    {
+      "id": "unsafe-partner-2",
+      "topic": "unsafe-partner",
+      "sourceSeed": 1,
+      "contract": "D",
+      "hands": [
+        [
+          "H-9",
+          "H-Q",
+          "S-8",
+          "C-K",
+          "S-9",
+          "D-7",
+          "C-Q",
+          "D-K"
+        ],
+        [
+          "D-J",
+          "S-A",
+          "C-10",
+          "H-8",
+          "S-7",
+          "C-7",
+          "D-Q",
+          "S-J"
+        ],
+        [
+          "H-K",
+          "D-9",
+          "H-10",
+          "H-7",
+          "C-J",
+          "D-8",
+          "C-8",
+          "H-J"
+        ],
+        [
+          "H-A",
+          "S-10",
+          "C-9",
+          "S-Q",
+          "S-K",
+          "D-A",
+          "D-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "D"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "S-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-Q",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "C-7"
+      ],
+      "oldCard": "C-7",
+      "exampleCard": "C-7"
+    },
+    {
+      "id": "draw-control-1",
+      "topic": "draw-control",
+      "sourceSeed": 1,
+      "contract": "H",
+      "hands": [
+        [
+          "H-9",
+          "H-Q",
+          "S-8",
+          "C-K",
+          "S-9",
+          "D-7",
+          "C-Q",
+          "D-K"
+        ],
+        [
+          "D-J",
+          "S-A",
+          "C-10",
+          "H-8",
+          "S-7",
+          "C-7",
+          "D-Q",
+          "S-J"
+        ],
+        [
+          "H-K",
+          "D-9",
+          "H-10",
+          "H-7",
+          "C-J",
+          "D-8",
+          "C-8",
+          "H-J"
+        ],
+        [
+          "H-A",
+          "S-10",
+          "C-9",
+          "S-Q",
+          "S-K",
+          "D-A",
+          "D-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-8",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "H-J"
+      ],
+      "oldCard": "H-J",
+      "exampleCard": "H-J"
+    },
+    {
+      "id": "develop-entry-1",
+      "topic": "develop-entry",
+      "sourceSeed": 1,
+      "contract": "NT",
+      "hands": [
+        [
+          "H-9",
+          "H-Q",
+          "S-8",
+          "C-K",
+          "S-9",
+          "D-7",
+          "C-Q",
+          "D-K"
+        ],
+        [
+          "D-J",
+          "S-A",
+          "C-10",
+          "H-8",
+          "S-7",
+          "C-7",
+          "D-Q",
+          "S-J"
+        ],
+        [
+          "H-K",
+          "D-9",
+          "H-10",
+          "H-7",
+          "C-J",
+          "D-8",
+          "C-8",
+          "H-J"
+        ],
+        [
+          "H-A",
+          "S-10",
+          "C-9",
+          "S-Q",
+          "S-K",
+          "D-A",
+          "D-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-A",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "S-K"
+      ],
+      "oldCard": "C-A",
+      "exampleCard": "S-K"
+    },
+    {
+      "id": "feed-before-last-1",
+      "topic": "feed-before-last",
+      "sourceSeed": 1,
+      "contract": "AT",
+      "hands": [
+        [
+          "H-9",
+          "H-Q",
+          "S-8",
+          "C-K",
+          "S-9",
+          "D-7",
+          "C-Q",
+          "D-K"
+        ],
+        [
+          "D-J",
+          "S-A",
+          "C-10",
+          "H-8",
+          "S-7",
+          "C-7",
+          "D-Q",
+          "S-J"
+        ],
+        [
+          "H-K",
+          "D-9",
+          "H-10",
+          "H-7",
+          "C-J",
+          "D-8",
+          "C-8",
+          "H-J"
+        ],
+        [
+          "H-A",
+          "S-10",
+          "C-9",
+          "S-Q",
+          "S-K",
+          "D-A",
+          "D-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "AT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-A",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "C-K"
+      ],
+      "oldCard": "C-Q",
+      "exampleCard": "C-K"
+    },
+    {
+      "id": "preserve-draw-conflict-1",
+      "topic": "preserve-draw-conflict",
+      "sourceSeed": 2,
+      "contract": "C",
+      "hands": [
+        [
+          "H-8",
+          "S-10",
+          "H-A",
+          "H-9",
+          "D-Q",
+          "C-9",
+          "D-A",
+          "H-7"
+        ],
+        [
+          "C-J",
+          "S-J",
+          "C-K",
+          "S-8",
+          "C-7",
+          "D-J",
+          "D-10",
+          "S-Q"
+        ],
+        [
+          "D-8",
+          "C-8",
+          "S-9",
+          "S-A",
+          "D-7",
+          "C-10",
+          "H-J",
+          "H-Q"
+        ],
+        [
+          "H-10",
+          "H-K",
+          "D-9",
+          "S-K",
+          "S-7",
+          "C-Q",
+          "D-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "C"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [
+            "seq-H-2-3"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-10",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "D-10",
+        "D-J",
+        "S-8",
+        "S-J",
+        "S-Q"
+      ],
+      "oldCard": "C-J",
+      "exampleCard": "S-8"
+    },
+    {
+      "id": "preserve-draw-conflict-2",
+      "topic": "preserve-draw-conflict",
+      "sourceSeed": 2,
+      "contract": "D",
+      "hands": [
+        [
+          "H-8",
+          "S-10",
+          "H-A",
+          "H-9",
+          "D-Q",
+          "C-9",
+          "D-A",
+          "H-7"
+        ],
+        [
+          "C-J",
+          "S-J",
+          "C-K",
+          "S-8",
+          "C-7",
+          "D-J",
+          "D-10",
+          "S-Q"
+        ],
+        [
+          "D-8",
+          "C-8",
+          "S-9",
+          "S-A",
+          "D-7",
+          "C-10",
+          "H-J",
+          "H-Q"
+        ],
+        [
+          "H-10",
+          "H-K",
+          "D-9",
+          "S-K",
+          "S-7",
+          "C-Q",
+          "D-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "D"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [
+            "seq-H-2-3"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-10",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "C-7",
+        "C-J",
+        "C-K",
+        "S-8",
+        "S-J",
+        "S-Q"
+      ],
+      "oldCard": "D-J",
+      "exampleCard": "C-7"
+    },
+    {
+      "id": "feed-before-last-2",
+      "topic": "feed-before-last",
+      "sourceSeed": 2,
+      "contract": "NT",
+      "hands": [
+        [
+          "H-8",
+          "S-10",
+          "H-A",
+          "H-9",
+          "D-Q",
+          "C-9",
+          "D-A",
+          "H-7"
+        ],
+        [
+          "C-J",
+          "S-J",
+          "C-K",
+          "S-8",
+          "C-7",
+          "D-J",
+          "D-10",
+          "S-Q"
+        ],
+        [
+          "D-8",
+          "C-8",
+          "S-9",
+          "S-A",
+          "D-7",
+          "C-10",
+          "H-J",
+          "H-Q"
+        ],
+        [
+          "H-10",
+          "H-K",
+          "D-9",
+          "S-K",
+          "S-7",
+          "C-Q",
+          "D-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-7",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "H-Q"
+      ],
+      "oldCard": "H-J",
+      "exampleCard": "H-Q"
+    },
+    {
+      "id": "draw-control-2",
+      "topic": "draw-control",
+      "sourceSeed": 3,
+      "contract": "D",
+      "hands": [
+        [
+          "C-8",
+          "S-Q",
+          "D-10",
+          "D-Q",
+          "H-Q",
+          "S-8",
+          "C-10",
+          "S-K"
+        ],
+        [
+          "S-J",
+          "H-9",
+          "C-K",
+          "C-Q",
+          "C-9",
+          "C-7",
+          "D-8",
+          "H-7"
+        ],
+        [
+          "D-7",
+          "H-10",
+          "S-7",
+          "D-A",
+          "D-J",
+          "H-A",
+          "D-9",
+          "H-K"
+        ],
+        [
+          "C-J",
+          "H-J",
+          "S-A",
+          "D-K",
+          "S-10",
+          "S-9",
+          "H-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "D"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "C-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-J",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "D-9",
+        "D-J",
+        "D-A"
+      ],
+      "oldCard": "D-J",
+      "exampleCard": "D-J"
+    },
+    {
+      "id": "develop-no-entry-1",
+      "topic": "develop-no-entry",
+      "sourceSeed": 3,
+      "contract": "NT",
+      "hands": [
+        [
+          "C-8",
+          "S-Q",
+          "D-10",
+          "D-Q",
+          "H-Q",
+          "S-8",
+          "C-10",
+          "S-K"
+        ],
+        [
+          "S-J",
+          "H-9",
+          "C-K",
+          "C-Q",
+          "C-9",
+          "C-7",
+          "D-8",
+          "H-7"
+        ],
+        [
+          "D-7",
+          "H-10",
+          "S-7",
+          "D-A",
+          "D-J",
+          "H-A",
+          "D-9",
+          "H-K"
+        ],
+        [
+          "C-J",
+          "H-J",
+          "S-A",
+          "D-K",
+          "S-10",
+          "S-9",
+          "H-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [],
+      "preferredCards": [
+        "C-8",
+        "C-10",
+        "D-10",
+        "D-Q",
+        "H-Q",
+        "S-8",
+        "S-Q",
+        "S-K"
+      ],
+      "oldCard": "C-8",
+      "exampleCard": "C-8"
+    },
+    {
+      "id": "feed-preserve-winner-1",
+      "topic": "feed-preserve-winner",
+      "sourceSeed": 3,
+      "contract": "AT",
+      "hands": [
+        [
+          "C-8",
+          "S-Q",
+          "D-10",
+          "D-Q",
+          "H-Q",
+          "S-8",
+          "C-10",
+          "S-K"
+        ],
+        [
+          "S-J",
+          "H-9",
+          "C-K",
+          "C-Q",
+          "C-9",
+          "C-7",
+          "D-8",
+          "H-7"
+        ],
+        [
+          "D-7",
+          "H-10",
+          "S-7",
+          "D-A",
+          "D-J",
+          "H-A",
+          "D-9",
+          "H-K"
+        ],
+        [
+          "C-J",
+          "H-J",
+          "S-A",
+          "D-K",
+          "S-10",
+          "S-9",
+          "H-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "AT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "C-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-Q",
+          "declare": [],
+          "belot": true
+        },
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "C-A"
+      ],
+      "oldCard": "C-J",
+      "exampleCard": "C-A"
+    },
+    {
+      "id": "develop-no-entry-2",
+      "topic": "develop-no-entry",
+      "sourceSeed": 4,
+      "contract": "NT",
+      "hands": [
+        [
+          "H-8",
+          "S-K",
+          "S-8",
+          "C-9",
+          "D-7",
+          "D-9",
+          "S-J",
+          "H-9"
+        ],
+        [
+          "D-K",
+          "S-7",
+          "D-J",
+          "D-A",
+          "C-Q",
+          "D-Q",
+          "S-A",
+          "S-10"
+        ],
+        [
+          "D-8",
+          "D-10",
+          "C-J",
+          "C-K",
+          "S-9",
+          "S-Q",
+          "C-8",
+          "H-A"
+        ],
+        [
+          "C-7",
+          "H-K",
+          "C-10",
+          "H-Q",
+          "H-J",
+          "H-7",
+          "H-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [],
+      "preferredCards": [
+        "C-9",
+        "D-7",
+        "D-9",
+        "H-8",
+        "H-9",
+        "S-8",
+        "S-J",
+        "S-K"
+      ],
+      "oldCard": "D-7",
+      "exampleCard": "D-7"
+    },
+    {
+      "id": "feed-preserve-winner-2",
+      "topic": "feed-preserve-winner",
+      "sourceSeed": 4,
+      "contract": "AT",
+      "hands": [
+        [
+          "H-8",
+          "S-K",
+          "S-8",
+          "C-9",
+          "D-7",
+          "D-9",
+          "S-J",
+          "H-9"
+        ],
+        [
+          "D-K",
+          "S-7",
+          "D-J",
+          "D-A",
+          "C-Q",
+          "D-Q",
+          "S-A",
+          "S-10"
+        ],
+        [
+          "D-8",
+          "D-10",
+          "C-J",
+          "C-K",
+          "S-9",
+          "S-Q",
+          "C-8",
+          "H-A"
+        ],
+        [
+          "C-7",
+          "H-K",
+          "C-10",
+          "H-Q",
+          "H-J",
+          "H-7",
+          "H-10",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "AT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "S-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-7",
+          "declare": [
+            "seq-D-7-4"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-7",
+          "declare": [
+            "seq-H-6-4"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-Q",
+          "declare": [],
+          "belot": true
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-8",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "D-A"
+      ],
+      "oldCard": "D-J",
+      "exampleCard": "D-A"
+    },
+    {
+      "id": "develop-entry-2",
+      "topic": "develop-entry",
+      "sourceSeed": 5,
+      "contract": "NT",
+      "hands": [
+        [
+          "D-Q",
+          "C-K",
+          "C-7",
+          "H-Q",
+          "H-9",
+          "C-10",
+          "H-A",
+          "H-10"
+        ],
+        [
+          "S-K",
+          "H-8",
+          "D-7",
+          "S-J",
+          "S-Q",
+          "C-8",
+          "C-Q",
+          "D-J"
+        ],
+        [
+          "D-9",
+          "C-J",
+          "H-7",
+          "D-K",
+          "C-9",
+          "D-8",
+          "H-J",
+          "S-7"
+        ],
+        [
+          "D-A",
+          "S-10",
+          "D-10",
+          "S-8",
+          "S-9",
+          "S-A",
+          "H-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [],
+      "preferredCards": [
+        "C-K"
+      ],
+      "oldCard": "H-A",
+      "exampleCard": "C-K"
+    },
+    {
+      "id": "ten-no-guard-needed-1",
+      "topic": "ten-no-guard-needed",
+      "sourceSeed": 6,
+      "contract": "NT",
+      "hands": [
+        [
+          "C-7",
+          "S-A",
+          "H-A",
+          "D-J",
+          "S-9",
+          "H-8",
+          "D-10",
+          "H-Q"
+        ],
+        [
+          "H-10",
+          "C-8",
+          "S-J",
+          "H-J",
+          "S-Q",
+          "D-Q",
+          "C-10",
+          "S-7"
+        ],
+        [
+          "H-9",
+          "H-7",
+          "D-K",
+          "C-Q",
+          "C-K",
+          "C-9",
+          "D-9",
+          "S-K"
+        ],
+        [
+          "C-J",
+          "D-A",
+          "D-7",
+          "H-K",
+          "D-8",
+          "S-10",
+          "S-8",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "S-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-K",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "S-8",
+        "S-10"
+      ],
+      "oldCard": "S-8",
+      "exampleCard": "S-8"
+    },
+    {
+      "id": "develop-insufficient-entries-1",
+      "topic": "develop-insufficient-entries",
+      "sourceSeed": 7,
+      "contract": "NT",
+      "hands": [
+        [
+          "S-A",
+          "C-10",
+          "H-8",
+          "H-J",
+          "D-K",
+          "D-10",
+          "H-Q",
+          "H-K"
+        ],
+        [
+          "H-10",
+          "D-A",
+          "S-K",
+          "C-K",
+          "D-J",
+          "S-7",
+          "S-10",
+          "D-8"
+        ],
+        [
+          "C-9",
+          "D-7",
+          "H-7",
+          "D-Q",
+          "S-Q",
+          "H-A",
+          "C-8",
+          "S-9"
+        ],
+        [
+          "C-7",
+          "C-Q",
+          "C-J",
+          "D-9",
+          "S-8",
+          "H-9",
+          "S-J",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [],
+      "preferredCards": [
+        "C-10",
+        "D-10",
+        "D-K",
+        "H-8",
+        "H-J",
+        "H-Q",
+        "H-K",
+        "S-A"
+      ],
+      "oldCard": "S-A",
+      "exampleCard": "S-A"
+    },
+    {
+      "id": "develop-insufficient-entries-2",
+      "topic": "develop-insufficient-entries",
+      "sourceSeed": 8,
+      "contract": "NT",
+      "hands": [
+        [
+          "C-8",
+          "C-9",
+          "H-A",
+          "H-9",
+          "D-9",
+          "C-J",
+          "D-8",
+          "S-K"
+        ],
+        [
+          "H-8",
+          "C-10",
+          "S-9",
+          "C-K",
+          "D-K",
+          "D-Q",
+          "S-7",
+          "S-J"
+        ],
+        [
+          "C-Q",
+          "H-10",
+          "D-J",
+          "S-8",
+          "D-A",
+          "H-7",
+          "H-J",
+          "S-10"
+        ],
+        [
+          "S-A",
+          "D-10",
+          "H-K",
+          "H-Q",
+          "S-Q",
+          "D-7",
+          "C-7",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [],
+      "preferredCards": [
+        "C-8",
+        "C-9",
+        "C-J",
+        "D-8",
+        "D-9",
+        "H-9",
+        "H-A",
+        "S-K"
+      ],
+      "oldCard": "H-A",
+      "exampleCard": "H-A"
+    },
+    {
+      "id": "protect-ten-1",
+      "topic": "protect-ten",
+      "sourceSeed": 10,
+      "contract": "H",
+      "hands": [
+        [
+          "S-7",
+          "D-A",
+          "C-7",
+          "H-A",
+          "S-8",
+          "D-J",
+          "S-A",
+          "C-10"
+        ],
+        [
+          "H-7",
+          "H-9",
+          "D-10",
+          "C-K",
+          "H-K",
+          "D-K",
+          "H-J",
+          "H-8"
+        ],
+        [
+          "C-J",
+          "D-8",
+          "D-7",
+          "S-9",
+          "S-K",
+          "C-9",
+          "S-J",
+          "C-8"
+        ],
+        [
+          "D-9",
+          "S-10",
+          "D-Q",
+          "S-Q",
+          "H-Q",
+          "H-10",
+          "C-Q",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "H"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-K",
+          "declare": [
+            "seq-H-2-3"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-Q",
+          "declare": [
+            "four-Q"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-10",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "S-7",
+        "S-8"
+      ],
+      "oldCard": "C-7",
+      "exampleCard": "S-7"
+    },
+    {
+      "id": "ten-no-guard-needed-2",
+      "topic": "ten-no-guard-needed",
+      "sourceSeed": 10,
+      "contract": "NT",
+      "hands": [
+        [
+          "S-7",
+          "D-A",
+          "C-7",
+          "H-A",
+          "S-8",
+          "D-J",
+          "S-A",
+          "C-10"
+        ],
+        [
+          "H-7",
+          "H-9",
+          "D-10",
+          "C-K",
+          "H-K",
+          "D-K",
+          "H-J",
+          "H-8"
+        ],
+        [
+          "C-J",
+          "D-8",
+          "D-7",
+          "S-9",
+          "S-K",
+          "C-9",
+          "S-J",
+          "C-8"
+        ],
+        [
+          "D-9",
+          "S-10",
+          "D-Q",
+          "S-Q",
+          "H-Q",
+          "H-10",
+          "C-Q",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "NT"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-A",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "D-10",
+        "D-K"
+      ],
+      "oldCard": "D-K",
+      "exampleCard": "D-K"
+    },
+    {
+      "id": "protect-ten-2",
+      "topic": "protect-ten",
+      "sourceSeed": 16,
+      "contract": "D",
+      "hands": [
+        [
+          "D-J",
+          "C-Q",
+          "C-7",
+          "D-9",
+          "S-Q",
+          "D-K",
+          "S-10",
+          "D-10"
+        ],
+        [
+          "D-8",
+          "H-10",
+          "H-J",
+          "D-7",
+          "H-9",
+          "S-9",
+          "S-J",
+          "C-K"
+        ],
+        [
+          "D-Q",
+          "S-7",
+          "C-10",
+          "H-7",
+          "S-K",
+          "D-A",
+          "C-8",
+          "S-A"
+        ],
+        [
+          "H-Q",
+          "H-8",
+          "S-8",
+          "C-9",
+          "C-J",
+          "H-A",
+          "H-K",
+          "C-A"
+        ]
+      ],
+      "bids": [
+        {
+          "type": "bid",
+          "bid": "D"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        },
+        {
+          "type": "bid",
+          "bid": "pass"
+        }
+      ],
+      "history": [
+        {
+          "type": "play",
+          "card": "D-J",
+          "declare": [
+            "seq-D-4-3"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-7",
+          "declare": [
+            "seq-H-4-3"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-8",
+          "declare": [
+            "seq-H-7-3"
+          ],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-A",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-7",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-8",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "C-J",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-9",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-K",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "H-Q",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "S-10",
+          "declare": [],
+          "belot": false
+        },
+        {
+          "type": "play",
+          "card": "D-K",
+          "declare": [],
+          "belot": false
+        }
+      ],
+      "preferredCards": [
+        "S-J"
+      ],
+      "oldCard": "H-J",
+      "exampleCard": "S-J"
+    }
+  ]
+}

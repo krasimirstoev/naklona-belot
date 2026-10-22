@@ -1,0 +1,178 @@
+{
+  "referenceFingerprint": "82aefe95fcdd06c755ba0aac48acc9edface3363d73d279dcb2cf8adc0c9f55e",
+  "baselineFingerprint": "5a08b67ecabca32f6f1562da4580396c80378f0477de8d8f236c7ad301080a6d",
+  "description": "Сдвоени раздавания с разменени отбори; победа е изпълнен наш или провален чужд договор. Това не е оценка на цели мачове или наддаване.",
+  "a": "hard",
+  "b": "medium",
+  "seedCount": 2,
+  "seedStart": 1100001,
+  "mode": "времеви бюджет",
+  "batches": 100,
+  "budgetMs": 220,
+  "confidence": {
+    "mean": 0.5416666666666667,
+    "lower": 0.5,
+    "upper": 0.5833333333333334,
+    "unit": "семе с всички договори и разменени отбори"
+  },
+  "contracts": [
+    {
+      "contract": "C",
+      "rounds": 4,
+      "wins": 2,
+      "ties": 0,
+      "declaringRounds": 2,
+      "contractsMade": 1,
+      "defendingRounds": 2,
+      "contractsDefeated": 1,
+      "gamePointDifference": -2,
+      "cardPointDifference": -42,
+      "capotsFor": 0,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        7,
+        5
+      ],
+      "unbeatenCardsCollected": [
+        15,
+        17
+      ]
+    },
+    {
+      "contract": "D",
+      "rounds": 4,
+      "wins": 2,
+      "ties": 0,
+      "declaringRounds": 2,
+      "contractsMade": 2,
+      "defendingRounds": 2,
+      "contractsDefeated": 0,
+      "gamePointDifference": 4,
+      "cardPointDifference": 42,
+      "capotsFor": 0,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        4,
+        7
+      ],
+      "unbeatenCardsCollected": [
+        17,
+        13
+      ]
+    },
+    {
+      "contract": "H",
+      "rounds": 4,
+      "wins": 2,
+      "ties": 0,
+      "declaringRounds": 2,
+      "contractsMade": 1,
+      "defendingRounds": 2,
+      "contractsDefeated": 1,
+      "gamePointDifference": -2,
+      "cardPointDifference": 46,
+      "capotsFor": 0,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        3,
+        5
+      ],
+      "unbeatenCardsCollected": [
+        16,
+        16
+      ]
+    },
+    {
+      "contract": "S",
+      "rounds": 4,
+      "wins": 2,
+      "ties": 0,
+      "declaringRounds": 2,
+      "contractsMade": 1,
+      "defendingRounds": 2,
+      "contractsDefeated": 1,
+      "gamePointDifference": 7,
+      "cardPointDifference": 72,
+      "capotsFor": 1,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        4,
+        3
+      ],
+      "unbeatenCardsCollected": [
+        19,
+        17
+      ]
+    },
+    {
+      "contract": "NT",
+      "rounds": 4,
+      "wins": 2,
+      "ties": 0,
+      "declaringRounds": 2,
+      "contractsMade": 1,
+      "defendingRounds": 2,
+      "contractsDefeated": 1,
+      "gamePointDifference": 4,
+      "cardPointDifference": 76,
+      "capotsFor": 0,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        0,
+        1
+      ],
+      "unbeatenCardsCollected": [
+        21,
+        17
+      ]
+    },
+    {
+      "contract": "AT",
+      "rounds": 4,
+      "wins": 3,
+      "ties": 0,
+      "declaringRounds": 2,
+      "contractsMade": 1,
+      "defendingRounds": 2,
+      "contractsDefeated": 2,
+      "gamePointDifference": 42,
+      "cardPointDifference": 92,
+      "capotsFor": 0,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        7,
+        10
+      ],
+      "unbeatenCardsCollected": [
+        23,
+        16
+      ]
+    }
+  ],
+  "computation": [
+    {
+      "policy": "hard",
+      "decisions": 384,
+      "p50Ms": 205.30095599999913,
+      "p95Ms": 220.1687630000015,
+      "maxMs": 221.163029,
+      "searchCalls": 247,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 38.016194331983804,
+      "abortedBatches": 37
+    },
+    {
+      "policy": "medium",
+      "decisions": 384,
+      "p50Ms": 0.24712799999906565,
+      "p95Ms": 0.7037860000018554,
+      "maxMs": 3.5140799999999217,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    }
+  ]
+}

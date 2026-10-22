@@ -1,6 +1,8 @@
-import { deck, legalCards, points, rank, shuffle, strength, suit, team, winner } from './engine.js';
+import { compareUtility, scorePosition, objectiveLabels, UTILITY_FIELDS, type UtilityObjective, type RoundUtility, type ScoringPosition } from './bot-objective.js';
+import { createHandSampler } from './bot-sampling.js';
+import { availableBelots, declarations, deck, legalCards, points, rank, strength, suit, team, winner } from './engine.js';
 import { buildKnowledge, type BotPosition, type BotKnowledge } from './bot-knowledge.js';
-import { decideCard, type BotDecision } from './bot-tactics.js';
+import { decideCard, decideTacticalCard, type BotDecision } from './bot-tactics.js';
 import { CONTRACTS, SUITS, type Action, type Card, type Contract, type Play, type View, type Declaration } from './types.js';
 
 function bidValue(hand: Card[], contract: Contract): number {
@@ -60,118 +62,135 @@ export function heuristicCard(hand: Card[], trick: Play[], contract: Contract, s
 // Each candidate assignment respects every public play, including inferred voids and
 // mandatory overtrumps, as well as combinations revealed after the first trick.
 export function sampleHands(v: View, rng=Math.random): Card[][] | null {
-  return sampleFromKnowledge(v,buildKnowledge(v),rng);
-}
-function sampleFromKnowledge(v: View, knowledge: BotKnowledge, rng: ()=>number): Card[][] | null {
-  if(v.hand.length!==v.counts[v.seat] || knowledge.unknown.length!==v.counts.reduce((n,count,p)=>n+(p===v.seat?0:count),0)) return null;
-  const unknown=shuffle(knowledge.unknown,rng);
-  const allowed=new Map<Card,number[]>();
-  for(const c of unknown) {
-    const seats=knowledge.possibleOwners[c]!;
-    if(!seats.length) return null;
-    allowed.set(c,shuffle(seats,rng));
+  const knowledge=buildKnowledge(v),sampler=createHandSampler(v,knowledge);
+  if(!sampler)return null;
+  for(let attempt=0;attempt<100;attempt++){
+    const hands=sampler.sample(rng);
+    if(sampledAnnouncements(v,hands,rng)!==null)return hands;
   }
-  unknown.sort((a,b)=>allowed.get(a)!.length-allowed.get(b)!.length);
-  const hands: Card[][]=[[],[],[],[]];hands[v.seat]=[...v.hand]; let nodes=0;
-  function assign(i: number): boolean {
-    if(++nodes>5000) return false;
-    if(i===unknown.length) return true;
-    const c=unknown[i];
-    for(const p of allowed.get(c)!) if(hands[p].length<v.counts[p]) {hands[p].push(c);if(assign(i+1)) return true;hands[p].pop();}
-    return false;
-  }
-  return assign(0)?hands:null;
+  return null;
 }
-function simulation(hands: Card[][], trick: Play[], turn: number, v: View, deadline: number, tricks: View['tricks']): number | null {
-  const contract=v.contract!,perspective=team(v.seat);
-  let value=0;
-  while(hands.some(h=>h.length)) {
-    if(performance.now()>deadline) return null;
-    // Perfect-information search stays isolated from the public-information policy.
-    if(hands.reduce((n,h)=>n+h.length,0)<=7) {
-      const end=search(hands,trick,turn,contract,perspective,deadline);
-      return performance.now()>deadline?null:value+end;
+export interface HardSearchOptions { objective?:UtilityObjective; rollout?:'strategy'|'tactical'; selection?:'mean'|'supported' }
+interface RolloutState extends ScoringPosition {}
+/** Видимият вид анонс ограничава извадката; чуждите му карти са хипотеза, не знание на играча. */
+function sampledAnnouncements(v:View,hands:Card[][],rng:()=>number):View['announcements']|null {
+  const history=[...v.tricks.flatMap(t=>t.plays),...v.trick];
+  const result:View['announcements']=[];
+  for(let player=0;player<4;player++) {
+    const publicCalls=v.announcements.filter(a=>a.player===player);
+    if(!publicCalls.length)continue;
+    const full=[...hands[player],...history.filter(p=>p.player===player).map(p=>p.card)];
+    const options=declarations(full,v.contract!);
+    const assignments:Declaration[][]=[];
+    function visit(i:number,chosen:Declaration[],used:Set<Card>) {
+      if(i===publicCalls.length){assignments.push(chosen);return;}
+      const announced=publicCalls[i];
+      for(const d of options) if(d.kind===announced.kind&&(!announced.value||d.value===announced.value)&&
+        (!announced.cards.length||announced.cards.every(c=>d.cards.includes(c)))&&d.cards.every(c=>!used.has(c)))
+        visit(i+1,[...chosen,d],new Set([...used,...d.cards]));
     }
-    const position: BotPosition={
-      hand:hands[turn],seat:turn,counts:hands.map(h=>h.length),contract,declarer:v.declarer,
-      trick,tricks,belots:v.belots,
-      announcements:v.announcements.map(a=>a.player===turn?a:{...a,cards:[]})
-    };
-    const c=decideCard(position).card;
-    hands[turn].splice(hands[turn].indexOf(c),1);trick.push({player:turn,card:c});
-    if(trick.length===4) {
-      const w=winner(trick,contract),end=hands.every(h=>!h.length);
-      value+=(team(w)===perspective?1:-1)*(trick.reduce((n,p)=>n+points(p.card,contract),0)+(end?(contract==='NT'?20:10):0));
-      tricks.push({plays:trick,winner:w});trick=[];turn=w;
-    } else turn=(turn+1)%4;
+    visit(0,[],new Set());
+    if(!assignments.length)return null;
+    for(const d of assignments[Math.floor(rng()*assignments.length)])result.push({...d,player});
   }
-  return performance.now()>deadline?null:value;
+  return result;
 }
-function search(hands: Card[][], trick: Play[], turn: number, contract: Contract, perspective: number, deadline: number, alpha=-Infinity, beta=Infinity): number {
-  if(trick.length===4) {
-    const w=winner(trick,contract);const end=hands.every(h=>h.length===0);
-    const value=(team(w)===perspective?1:-1)*(trick.reduce((n,p)=>n+points(p.card,contract),0)+(end?(contract==='NT'?20:10):0));
-    return end?value:value+search(hands,[],w,contract,perspective,deadline,alpha-value,beta-value);
+function announceRollout(state:RolloutState,hand:Card[],trick:Play[],seat:number,card:Card) {
+  if(!state.tricks.length&&!state.announcements.some(a=>a.player===seat)) {
+    const options=declarations(hand,state.contract!),chosen=selectDeclarations(options);
+    state.announcements.push(...options.filter(d=>chosen.includes(d.id)).map(d=>({...d,player:seat})));
   }
-  if(performance.now()>deadline) return 0;
-  const maximize=team(turn)===perspective;let best=maximize?-Infinity:Infinity;
-  for(const c of legalCards(hands[turn],trick,contract,turn)) {
-    const index=hands[turn].indexOf(c);hands[turn].splice(index,1);
-    const value=search(hands,[...trick,{player:turn,card:c}],(turn+1)%4,contract,perspective,deadline,alpha,beta);
-    hands[turn].splice(index,0,c);
-    best=maximize?Math.max(best,value):Math.min(best,value);
-    if(maximize) alpha=Math.max(alpha,best);else beta=Math.min(beta,best);
-    if(beta<=alpha) break;
+  if(availableBelots(hand,trick,state.contract!,state.belots,seat).includes(card))state.belots.push({player:seat,suit:suit(card)});
+}
+function simulation(hands:Card[][],trick:Play[],turn:number,state:RolloutState,perspective:number,deadline:number,options:HardSearchOptions):RoundUtility|null {
+  while(hands.some(h=>h.length)) {
+    if(performance.now()>deadline)return null;
+    if(hands.reduce((n,h)=>n+h.length,0)<=7)return search(hands,trick,turn,state,perspective,deadline,options);
+    const position:BotPosition={hand:hands[turn],seat:turn,counts:hands.map(h=>h.length),contract:state.contract,declarer:state.declarer,
+      trick,tricks:state.tricks,belots:state.belots,
+      announcements:state.announcements.map(a=>a.player===turn?a:{...a,cards:[],id:'hidden',strength:0,value:a.kind==='four'?0:a.value})};
+    const card=(options.rollout==='tactical'?decideTacticalCard(position):decideCard(position)).card;
+    announceRollout(state,hands[turn],trick,turn,card);
+    hands[turn].splice(hands[turn].indexOf(card),1);trick.push({player:turn,card});
+    if(trick.length===4){turn=winner(trick,state.contract!);state.tricks.push({plays:trick,winner:turn});trick=[];}
+    else turn=(turn+1)%4;
   }
-  return Number.isFinite(best)?best:0;
+  return performance.now()>deadline?null:scorePosition(state,state.tricks,perspective);
+}
+/** Малък ендшпил с открити карти; терминалната оценка използва същото отчитане като играта. */
+function search(hands:Card[][],trick:Play[],turn:number,state:RolloutState,perspective:number,deadline:number,options:HardSearchOptions,
+  alpha:RoundUtility|null=null,beta:RoundUtility|null=null):RoundUtility|null {
+  if(performance.now()>deadline)return null;
+  if(trick.length===4){
+    const won=winner(trick,state.contract!);state.tricks.push({plays:trick,winner:won});
+    const value=hands.every(h=>!h.length)?scorePosition(state,state.tricks,perspective):search(hands,[],won,state,perspective,deadline,options,alpha,beta);
+    state.tricks.pop();return value;
+  }
+  const maximize=team(turn)===perspective;let best:RoundUtility|null=null;
+  for(const card of legalCards(hands[turn],trick,state.contract!,turn)) {
+    const index=hands[turn].indexOf(card),belots=state.belots.length,announcements=state.announcements.length;
+    announceRollout(state,hands[turn],trick,turn,card);hands[turn].splice(index,1);
+    const value=search(hands,[...trick,{player:turn,card}],(turn+1)%4,state,perspective,deadline,options,alpha,beta);
+    hands[turn].splice(index,0,card);state.belots.length=belots;state.announcements.length=announcements;
+    if(value===null)return null;
+    if(best===null||(maximize?compareUtility(value,best,options.objective)>0:compareUtility(value,best,options.objective)<0))best=value;
+    if(maximize){if(alpha===null||compareUtility(best!,alpha,options.objective)>0)alpha=best;}
+    else if(beta===null||compareUtility(best!,beta,options.objective)<0)beta=best;
+    if(alpha&&beta&&compareUtility(alpha,beta,options.objective)>=0)break;
+  }
+  return best;
 }
 export function hardAction(v: View, budgetMs=220, rng=Math.random, maxIterations=100): Action {
   if(v.phase!=='playing' || v.legalCards.length<=1) return basicAction(v,rng);
   return playAction(v,decideHardCard(v,budgetMs,rng,maxIterations).card);
 }
-/** Internal diagnostics; the wire action continues to contain only the played card. */
-export function decideHardCard(v: View, budgetMs=220, rng=Math.random, maxIterations=100): BotDecision {
-  const deadline=performance.now()+budgetMs;
-  const knowledge=buildKnowledge(v);
-  const tactical=decideCard(v,v.legalCards,knowledge);
-  const totals=v.legalCards.map(()=>0);let iterations=0;
-  // Complete each batch to compare cards on the same hidden distribution.
-  while(iterations<maxIterations && performance.now()<deadline-15) {
-    const sampled=sampleFromKnowledge(v,knowledge,rng);if(!sampled) break;
-    const scores: number[]=[];let complete=true;
-    for(const c of v.legalCards) {
-      if(performance.now()>deadline-2) {complete=false;break;}
-      const hands=sampled.map(h=>[...h]);hands[v.seat].splice(hands[v.seat].indexOf(c),1);
-      let trick=[...v.trick,{player:v.seat,card:c}],turn=(v.seat+1)%4,value=0;
-      const tricks=[...v.tricks];
-      if(trick.length===4) {
-        turn=winner(trick,v.contract!);
-        const end=hands.every(h=>!h.length);
-        value=(team(turn)===team(v.seat)?1:-1)*(trick.reduce((n,p)=>n+points(p.card,v.contract!),0)+(end?(v.contract==='NT'?20:10):0));
-        tricks.push({plays:trick,winner:turn});trick=[];
-      }
-      const rollout=simulation(hands,trick,turn,v,deadline,tricks);
-      if(rollout===null) {complete=false;break;}
-      scores.push(value+rollout);
+/** Само вътрешна диагностика; публичният ход остава непроменен. */
+export function decideHardCard(v:View,budgetMs=220,rng=Math.random,maxIterations=100,options:HardSearchOptions={}):BotDecision {
+  const deadline=performance.now()+budgetMs,knowledge=buildKnowledge(v),tactical=decideCard(v,v.legalCards,knowledge);
+  const sampler=performance.now()<deadline-15?createHandSampler(v,knowledge):null;
+  const totals:RoundUtility[]=v.legalCards.map(()=>[0,0,0,0]);
+  const tacticalIndex=v.legalCards.indexOf(tactical.card),supported=v.legalCards.map(()=>true);
+  let iterations=0,abortedBatches=0,attempts=0,rejectedSamples=0;
+  const unique=new Set<string>();
+  while(iterations<maxIterations&&attempts<Math.max(100,maxIterations*10)&&performance.now()<deadline-15) {
+    const sampled=sampler?.sample(rng);if(!sampled)break;
+    attempts++;
+    const announcements=sampledAnnouncements(v,sampled,rng);if(!announcements){rejectedSamples++;continue;}
+    const scores:RoundUtility[]=[];let complete=true;
+    for(const card of v.legalCards) {
+      if(performance.now()>deadline-2){complete=false;break;}
+      const hands=sampled.map(h=>[...h]);
+      const state:RolloutState={contract:v.contract,declarer:v.declarer,multiplier:v.multiplier,scores:v.scores,hanging:v.hanging,round:v.round,
+        announcements:announcements.map(a=>({...a})),belots:[...v.belots],tricks:[...v.tricks]};
+      announceRollout(state,hands[v.seat],v.trick,v.seat,card);
+      hands[v.seat].splice(hands[v.seat].indexOf(card),1);
+      let trick=[...v.trick,{player:v.seat,card}],turn=(v.seat+1)%4;
+      if(trick.length===4){turn=winner(trick,v.contract!);state.tricks.push({plays:trick,winner:turn});trick=[];}
+      const rollout=simulation(hands,trick,turn,state,team(v.seat),deadline,options);
+      if(rollout===null){complete=false;break;}
+      scores.push(rollout);
     }
-    if(!complete) break;
-    scores.forEach((n,i)=>totals[i]+=n);iterations++;
+    if(!complete){abortedBatches++;break;}
+    scores.forEach((value,i)=>{
+      if(compareUtility(value,scores[tacticalIndex],options.objective)<0)supported[i]=false;
+      value.forEach((n,j)=>totals[i][j]+=n);
+    });iterations++;
+    unique.add(sampled.map(h=>[...h].sort().join(',')).join('|'));
   }
-  if(!iterations) return {...tactical,reasons:[...tactical.reasons,{
-    id:'search.fallback',contribution:0,facts:['Няма завършена сравнителна партида; използваме тактическата политика.']
+  const searchInfo={completedBatches:iterations,abortedBatches,uniqueSamples:unique.size,sampleAttempts:attempts,rejectedSamples,fallback:!iterations,objective:objectiveLabels(options.objective)};
+  if(!iterations)return {...tactical,search:searchInfo,reasons:[...tactical.reasons,{
+    id:'search.fallback',contribution:0,facts:['Няма завършена сравнителна партида; използваме стратегическата политика.']
   }]};
-  let best=0;
-  for(let i=1;i<totals.length;i++) if(totals[i]>totals[best] ||
-    (totals[i]===totals[best] && tactical.candidates[i].score>tactical.candidates[best].score)) best=i;
-  const candidates=tactical.candidates.map((candidate,i)=>({
-    card:candidate.card,score:totals[i]/iterations,reasons:[{
-      id:'search.sampled-points',contribution:totals[i]/iterations,
-      facts:[`${iterations} завършени сравнителни партиди; средна разлика в оставащите картови точки.`]
-    },{
-      id:'search.tactical-order',contribution:0,
-      facts:[`Тактическа оценка ${candidate.score}; използва се при равни симулационни оценки.`,
-        ...candidate.reasons.flatMap(r=>[r.id,...r.facts])]
-    }]
-  }));
-  return {card:candidates[best].card,reasons:candidates[best].reasons,candidates};
+  let best=v.legalCards.indexOf(tactical.card);
+  for(let i=0;i<totals.length;i++) if((options.selection!=='supported'||supported[i])&&compareUtility(totals[i],totals[best],options.objective)>0)best=i;
+  const candidates=tactical.candidates.map((candidate,i)=>{
+    const utility=totals[i].map(n=>n/iterations) as RoundUtility;
+    return {card:candidate.card,score:utility[3],utility,supported:supported[i],reasons:[{
+      id:'search.sampled-points',contribution:utility[3],facts:[`${iterations} завършени сравнителни партиди; средна разлика в общите картови точки.`]
+    },{id:'search.contract-objective',contribution:0,facts:[`Лексикографска оценка: ${utility.join(', ')}.`,`Полета на вектора: ${UTILITY_FIELDS.join('; ')}.`,`Ред на целите: ${objectiveLabels(options.objective).join('; ')}.`,
+      'Честотите са оценки върху допустими извадки, а не сигурни факти.','Бъдещите анонси и белоти следват автоматичната политика на ботовете.',
+      options.selection==='supported'&&!supported[i]?'Алтернативата е по-лоша от стратегическия избор в поне една завършена извадка; не заменя плана.':'Сравняваме завършените оценки без достъп до реалните чужди ръце.']},
+    {id:'search.tactical-order',contribution:0,facts:[`При равна крайна полезност предпочитаме плана ${tactical.strategy?.plan??'BALANCED_PLAY'} и карта ${tactical.card}.`,...candidate.reasons.flatMap(r=>[r.id,...r.facts])]}]};
+  });
+  return {card:candidates[best].card,reasons:candidates[best].reasons,candidates,strategy:tactical.strategy,search:searchInfo};
 }

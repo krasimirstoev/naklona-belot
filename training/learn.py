@@ -19,9 +19,14 @@ import time
 
 import torch
 from torch import nn
+from reporting import event_output, print_status
+from budget import GameBudget, deadline_for, validation_rejection
 
 ROOT = Path(__file__).resolve().parents[1]
-OBSERVATION_SIZE, ACTION_SIZE, ENCODING_VERSION = 1752, 81, 1
+MANIFEST = json.loads((Path(__file__).resolve().parents[1] / "src/game/learning-manifest.json").read_text())
+OBSERVATION_SIZE = sum(b["size"] for b in MANIFEST["observation"])
+ACTION_SIZE = sum(b["size"] for b in MANIFEST["action"])
+ENCODING_VERSION = MANIFEST["encodingVersion"]
 STOP = False
 
 
@@ -34,7 +39,7 @@ class Bridge:
     def __init__(self):
         self.process = subprocess.Popen(
             ["node", "--import", "tsx", "training/environment.ts"], cwd=ROOT,
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1, start_new_session=True)
         self.info = self.call("info")
         if (self.info["observationSize"], self.info["actionSize"], self.info["encodingVersion"]) != (
                 OBSERVATION_SIZE, ACTION_SIZE, ENCODING_VERSION):
@@ -141,6 +146,7 @@ class Session:
         self.bridges = []
         self.active = []
         self.mode = None
+        self.progress_json = True
         self.path = self.directory / "checkpoint.pt"
         torch.set_num_threads(threads)
         torch.manual_seed(seed)
@@ -149,9 +155,10 @@ class Session:
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=1e-3)
         with Bridge() as bridge:
             fingerprint = bridge.info["referenceFingerprint"]
+            scenario_digest = bridge.info["scenarioDigest"]
         self.config = {"version": 1, "encodingVersion": ENCODING_VERSION, "workers": workers,
                        "threads": threads, "seed": seed, "referenceFingerprint": fingerprint,
-                       "epsilon": .1, "replayCapacity": 20000, "trainingHardBatches": 4}
+                       "scenarioDigest": scenario_digest, "scenarioRatio": .1, "epsilon": .1, "replayCapacity": 20000, "trainingHardBatches": 4}
         self.metrics = {"collectSteps": 0, "trainSteps": 0, "matches": 0, "pretrainUpdates": 0, "rlUpdates": 0}
         self.dataset = collections.deque(maxlen=20000)
         self.replay = collections.deque(maxlen=20000)
@@ -231,11 +238,14 @@ class Session:
             b.close()
         self.lock.close()
 
-    def collect_or_train(self, mode, minutes, stop_at=None):
+    def collect_or_train(self, mode, minutes=None, stop_at=None, game_budget=None):
         if mode == "train" and self.metrics["pretrainUpdates"] == 0:
             raise ValueError("Collect examples and run pretrain before self-play")
+        game_budget = game_budget or GameBudget()
+        if minutes is None and stop_at is None and game_budget.limit is None:
+            raise ValueError("A game, time or phase limit is required")
         self.start(mode)
-        deadline, last_save = time.monotonic() + minutes * 60, time.monotonic()
+        deadline, last_save = deadline_for(minutes), time.monotonic()
         frozen_networks = {}
         executor = ThreadPoolExecutor(max_workers=self.config["workers"])
 
@@ -245,10 +255,13 @@ class Session:
 
         clean_exit = False
         try:
-            while not STOP and time.monotonic() < deadline and (stop_at is None or
+            while not STOP and not game_budget.exhausted and time.monotonic() < deadline and (stop_at is None or
                     self.metrics["collectSteps" if mode == "collect" else "matches"] < stop_at):
                 pending = []
-                for bridge, worker in zip(self.bridges, self.active):
+                # Reserve at most one possible completion per active actor. This prevents
+                # two concurrent terminal actions from overshooting a one-game remainder.
+                actor_count = len(self.active) if game_budget.remaining is None else min(len(self.active), game_budget.remaining)
+                for bridge, worker in zip(self.bridges[:actor_count], self.active[:actor_count]):
                     obs = worker["observation"]
                     policy = worker["policies"][obs["seat"]]
                     if mode == "collect":
@@ -283,6 +296,9 @@ class Session:
                     else:
                         self.metrics["trainSteps"] += 1
                     if result["done"]:
+                        game_budget.complete()
+                        if mode == "collect":
+                            self.metrics["collectMatches"] = self.metrics.get("collectMatches", 0) + 1
                         if mode == "train":
                             self.replay.extend(match_targets(worker["samples"], result))
                             self.metrics["matches"] += 1
@@ -299,7 +315,7 @@ class Session:
                 if time.monotonic() - last_save >= 30:
                     self.save()
                     frozen_networks = {k: v for k, v in frozen_networks.items() if k in self.league}
-                    print(json.dumps(self.metrics), flush=True)
+                    event_output({"event": "training-progress", "phase": mode, **self.metrics}, self.progress_json)
                     last_save = time.monotonic()
             clean_exit = True
         finally:
@@ -317,26 +333,47 @@ class Session:
         self.metrics[metric] += 1
         self.metrics["lastLoss"] = float(loss.detach())
 
-    def pretrain(self, minutes, stop_at=None):
+    def pretrain(self, minutes=None, stop_at=None):
         if not self.dataset:
             raise ValueError("No teacher examples; run collect first")
-        deadline, last_save = time.monotonic() + minutes * 60, time.monotonic()
+        if minutes is None and stop_at is None:
+            raise ValueError("A step or time limit is required for pretraining")
+        deadline, last_save = deadline_for(minutes), time.monotonic()
         data = list(self.dataset)
+        with Bridge() as bridge:
+            catalog = bridge.call("trainingScenarios")
+        if catalog["catalogDigest"] != self.config["scenarioDigest"]:
+            raise ValueError("Scenario catalog changed; start a new experiment")
+        scenarios = [(torch.tensor(s["observation"], dtype=torch.float32),
+                      torch.tensor(s["actionFeatures"], dtype=torch.float32), s["preferred"]) for s in catalog["examples"]]
+        if not scenarios:
+            raise ValueError("Missing training scenarios")
         try:
             while not STOP and time.monotonic() < deadline and (stop_at is None or self.metrics["pretrainUpdates"] < stop_at):
-                batch = self.rng.sample(data, min(32, len(data)))
+                # Exactly 90% natural teacher examples / 10% training scenarios per update.
+                batch = [(obs, actions, [index]) for obs, actions, index in self.rng.choices(data, k=36)]
+                batch += self.rng.choices(scenarios, k=4)
                 logits = self.network(torch.cat([inputs(obs, actions) for obs, actions, _ in batch]))
                 offset, losses = 0, []
-                for _, actions, index in batch:
-                    losses.append(nn.functional.cross_entropy(logits[offset:offset + len(actions)].unsqueeze(0), torch.tensor([index])))
+                for _, actions, preferred in batch:
+                    losses.append(preference_loss(logits[offset:offset + len(actions)], preferred))
                     offset += len(actions)
                 self.update(torch.stack(losses).mean(), "pretrainUpdates")
+                self.metrics["pretrainNaturalExamples"] = self.metrics.get("pretrainNaturalExamples", 0) + 36
+                self.metrics["pretrainScenarioExamples"] = self.metrics.get("pretrainScenarioExamples", 0) + 4
                 if time.monotonic() - last_save >= 30:
                     self.save()
-                    print(json.dumps(self.metrics), flush=True)
+                    event_output({"event": "training-progress", "phase": "pretrain", **self.metrics}, self.progress_json)
                     last_save = time.monotonic()
         finally:
             self.save()
+
+
+def preference_loss(logits, preferred):
+    """Probability mass of a preferred set; singleton equals cross entropy."""
+    if not preferred or len(set(preferred)) != len(preferred) or any(i < 0 or i >= len(logits) for i in preferred):
+        raise ValueError("Invalid preferred action set")
+    return torch.logsumexp(logits, dim=0) - torch.logsumexp(logits[preferred], dim=0)
 
 
 def profile(minutes):
@@ -354,7 +391,21 @@ def profile(minutes):
                           "note": "Medium-only environment throughput; hard teachers and learning add cost."}))
 
 
+def evaluation_progress(args, state, event):
+    if not getattr(args, "progress", False):
+        return
+    groups, current = state["groups"], state["current"]
+    event_output({"event": event, "phase": getattr(args, "progress_phase", args.split),
+                      "completedSeeds": len(groups), "seedsRequested": args.seeds,
+                      "games": len(groups) * 4 + len(current), "gamesRequested": args.seeds * 4,
+                      "wins": sum(sum(group) for group in groups) + sum(current),
+                      "model": state["config"]["modelSha256"][:12], "earlyRejection": state.get("earlyRejection")}, getattr(args, "progress_json", True))
+
+
 def evaluate(args):
+    game_budget = getattr(args, "game_budget", None) or GameBudget(getattr(args, "games", None))
+    if args.minutes is None and game_budget.limit is None:
+        raise ValueError("A game or time limit is required")
     path = Path(args.report)
     path.parent.mkdir(parents=True, exist_ok=True)
     progress_path = path.with_name(path.name + ".progress.pt")
@@ -370,7 +421,7 @@ def evaluate(args):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         config = {"version": 1, "modelSha256": digest, "referenceFingerprint": bridge.info["referenceFingerprint"],
                   "split": args.split, "partner": args.partner, "seedsRequested": args.seeds,
-                  "namespace": namespace, "opponentSha256": opponent_digest}
+                  "namespace": namespace, "opponentSha256": opponent_digest, "scenarioDigest": bridge.info["scenarioDigest"]}
         state = {"config": config, "groups": [], "current": [], "snapshot": None,
                  "latencies": [], "latencyCount": 0, "contracts": {}}
         if progress_path.exists():
@@ -382,12 +433,15 @@ def evaluate(args):
         loaded = bridge.call("loadModel", path=str(Path(args.model).resolve()))
         if loaded["digest"] != digest:
             raise ValueError("Model changed while evaluation was starting")
+        if "scenarios" not in state:
+            state["scenarios"] = bridge.call("scenarioReport")
         if opponent_path:
             loaded_opponent = bridge.call("loadOpponent", path=str(Path(opponent_path).resolve()))
             if loaded_opponent["digest"] != opponent_digest:
                 raise ValueError("Opponent changed while evaluation was starting")
         obs = bridge.call("restore", snapshot=state["snapshot"]) if state["snapshot"] else None
-        deadline, last_save = time.monotonic() + args.minutes * 60, time.monotonic()
+        deadline, last_save = deadline_for(args.minutes), time.monotonic()
+        evaluation_progress(args, state, "evaluation-start")
 
         def save():
             state["snapshot"] = bridge.call("snapshot") if obs and not obs["done"] else None
@@ -396,14 +450,24 @@ def evaluate(args):
             os.replace(temp, progress_path)
             latencies = sorted(state["latencies"])
             report = {**config, "completedSeeds": len(state["groups"]), "games": len(state["groups"]) * 4 + len(state["current"]),
-                      "complete": len(state["groups"]) == args.seeds, "confidence": bootstrap_confidence(state["groups"]),
-                      "contracts": state["contracts"], "latency": {"count": state["latencyCount"],
+                      "complete": len(state["groups"]) == args.seeds,
+                      "earlyRejected": bool(state.get("earlyRejection")), "earlyRejection": state.get("earlyRejection"),
+                      "wins": sum(sum(group) for group in state["groups"]) + sum(state["current"]), "confidence": bootstrap_confidence(state["groups"]),
+                      "contracts": state["contracts"], "scenarios": state["scenarios"], "latency": {"count": state["latencyCount"],
                       "p95Ms": latencies[min(len(latencies) - 1, math.floor(len(latencies) * .95))] if latencies else 0}}
             atomic_json(path, report)
             return report
 
         try:
             while not STOP and time.monotonic() < deadline and len(state["groups"]) < args.seeds:
+                # Check restored results before taking any action, even if this session's
+                # game budget has just been used by the preceding phase.
+                rejection = validation_rejection(state, args.split, args.seeds)
+                if rejection:
+                    state["earlyRejection"] = rejection
+                    break
+                if game_budget.exhausted:
+                    break
                 seat = len(state["current"])
                 seed = len(state["groups"])
                 if obs is None:
@@ -417,6 +481,7 @@ def evaluate(args):
                     state["latencies"] = state["latencies"][-10000:]
                     state["latencyCount"] += 1
                 if obs["done"]:
+                    game_budget.complete()
                     state["current"].append(float(obs["rewards"][seat % 2] > 0))
                     for r in obs["results"]:
                         bucket = state["contracts"].setdefault(r["contract"], {"rounds": 0, "scoreDifference": 0, "made": 0, "failed": 0, "hanging": 0})
@@ -429,11 +494,14 @@ def evaluate(args):
                     obs = None
                 if time.monotonic() - last_save >= 30:
                     report = save()
+                    evaluation_progress(args, state, "evaluation-progress")
                     if not quiet:
                         print(json.dumps({k: report[k] for k in ["completedSeeds", "games", "confidence"]}), flush=True)
                     last_save = time.monotonic()
         finally:
+            state["earlyRejection"] = state.get("earlyRejection") or validation_rejection(state, args.split, args.seeds)
             report = save()
+            evaluation_progress(args, state, "evaluation-rejected" if report["earlyRejected"] else "evaluation-complete" if report["complete"] else "evaluation-paused")
         if not quiet:
             print(json.dumps(report))
         return report
@@ -460,7 +528,12 @@ def main():
     for name in ["collect", "pretrain", "train"]:
         p = sub.add_parser(name)
         p.add_argument("--run", required=True)
-        p.add_argument("--minutes", type=float, required=True)
+        limit = p.add_mutually_exclusive_group(required=True)
+        limit.add_argument("--minutes", type=float)
+        if name == "pretrain":
+            limit.add_argument("--steps", type=int)
+        else:
+            limit.add_argument("--games", type=int)
         p.add_argument("--workers", type=int, default=2)
         p.add_argument("--threads", type=int, default=2)
         p.add_argument("--seed", type=int, default=7)
@@ -468,8 +541,11 @@ def main():
         p = sub.add_parser(name)
         p.add_argument("--run", required=True)
         p.add_argument("--registry")
+        p.add_argument("--json", action="store_true", help="Emit machine-readable events and the full report")
         if name == "cycle":
-            p.add_argument("--minutes", type=float, required=True)
+            limit = p.add_mutually_exclusive_group(required=True)
+            limit.add_argument("--minutes", type=float)
+            limit.add_argument("--games", type=int, help="Additional completed matches across all phases")
             p.add_argument("--teacher-examples", type=int)
             p.add_argument("--pretrain-steps", type=int)
             p.add_argument("--matches-per-candidate", type=int)
@@ -487,7 +563,9 @@ def main():
     p = sub.add_parser("evaluate")
     p.add_argument("--model", required=True)
     p.add_argument("--report", required=True)
-    p.add_argument("--minutes", type=float, required=True)
+    limit = p.add_mutually_exclusive_group(required=True)
+    limit.add_argument("--minutes", type=float)
+    limit.add_argument("--games", type=int)
     p.add_argument("--seeds", type=int, required=True)
     p.add_argument("--split", choices=["validation", "final"], default="validation")
     p.add_argument("--partner", choices=["hard", "medium"], default="hard")
@@ -502,8 +580,12 @@ def main():
     p.add_argument("--crossplay", required=True)
     p.add_argument("--champion")
     args = parser.parse_args()
-    if hasattr(args, "minutes") and (not math.isfinite(args.minutes) or args.minutes <= 0):
+    if getattr(args, "minutes", None) is not None and (not math.isfinite(args.minutes) or args.minutes <= 0):
         parser.error("--minutes must be finite and positive")
+    if getattr(args, "games", None) is not None and args.games < 1:
+        parser.error("--games must be a positive integer")
+    if getattr(args, "steps", None) is not None and args.steps < 1:
+        parser.error("--steps must be a positive integer")
     if any(getattr(args, name, None) is not None and not 1 <= getattr(args, name) <= 8 for name in ["workers", "threads"]) or (getattr(args, "seed", None) is not None and not 0 <= args.seed < 2**31):
         parser.error("workers/threads must be 1..8 and seed 0..2^31-1")
     if hasattr(args, "seeds") and args.seeds < 1:
@@ -519,7 +601,7 @@ def main():
         if args.command == "cycle":
             run_cycle(args)
         else:
-            print(json.dumps(status(args.run, args.registry)))
+            print_status(status(args.run, args.registry), args.json)
     elif args.command in ["activate", "rollback"]:
         with Bridge() as bridge:
             request = {"directory": str(Path(args.registry).resolve())}
@@ -542,9 +624,9 @@ def main():
         session = Session(args.run, args.workers, args.threads, args.seed)
         try:
             if args.command == "pretrain":
-                session.pretrain(args.minutes)
+                session.pretrain(args.minutes, stop_at=session.metrics["pretrainUpdates"] + args.steps if args.steps is not None else None)
             else:
-                session.collect_or_train(args.command, args.minutes)
+                session.collect_or_train(args.command, args.minutes, game_budget=GameBudget(args.games))
             print(json.dumps(session.metrics))
         finally:
             session.close()
