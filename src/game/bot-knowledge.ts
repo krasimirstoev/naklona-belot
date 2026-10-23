@@ -3,7 +3,7 @@ import { SUITS, type Card, type Play, type Suit, type View } from './types.js';
 
 /** Deliberately excludes other hands, the stock and server state. */
 export type BotPosition = Pick<View, 'hand' | 'seat' | 'counts' | 'contract' | 'declarer' |
-  'trick' | 'tricks' | 'announcements' | 'belots'>;
+  'trick' | 'tricks' | 'announcements' | 'belots'> & Partial<Pick<View,'calls'>>;
 export interface BotKnowledge {
   played: Card[];
   remaining: Card[];

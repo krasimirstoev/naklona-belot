@@ -7,7 +7,7 @@ export type Card = `${Suit}-${Rank}`;
 export type Contract = typeof CONTRACTS[number];
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type Speed = 'slow' | 'normal' | 'fast';
-export interface Settings { speed: Speed; revision: number }
+export interface Settings { speed: Speed; allowContraEscape: boolean; multiplyAnnouncements: boolean; higherFourWins: boolean; revision: number }
 export const SPEED_LABEL: Record<Speed,string> = {slow:'Бавна',normal:'Нормална',fast:'Бърза'};
 export interface AnnouncementEvent {
   id: number; round: number; revision: number; player: number;
@@ -32,6 +32,8 @@ export interface Game {
   events: AnnouncementEvent[]; eventSeq: number;
   id: string; revision: number; difficulty: Difficulty; phase: Phase; dealer: number; turn: number; round: number;
   hands: Card[][]; stock: Card[]; contract: Contract | null; declarer: number | null; multiplier: number;
+  allowContraEscape?: boolean;
+  multiplyAnnouncements?: boolean; higherFourWins?: boolean;
   passes: number; calls: Call[]; trick: Play[]; tricks: Trick[]; announcements: Announced[];
   belots: {player: number; suit: Suit}[]; scores: number[]; hanging: number; results: RoundResult[];
   message: string;
@@ -41,6 +43,8 @@ export interface View {
   events: AnnouncementEvent[];
   id: string; revision: number; difficulty: Difficulty; phase: Phase; dealer: number; turn: number; round: number;
   hand: Card[]; counts: number[]; contract: Contract | null; declarer: number | null; multiplier: number;
+  allowContraEscape: boolean;
+  multiplyAnnouncements: boolean; higherFourWins: boolean;
   calls: Call[]; trick: Play[]; tricks: Trick[]; announcements: Announced[];
   belots: {player: number; suit: Suit}[]; scores: number[]; hanging: number; results: RoundResult[]; message: string;
   legalCards: Card[]; legalBids: Bid[]; declarations: Declaration[]; belotCards: Card[]; seat: number;

@@ -49,7 +49,7 @@ test('scheduler retimes a sleeping task, keeps ownership of a computing task, an
 test('speed settings persist without a game and changing them never changes game revision or selected hand',async()=>{
   const app=await createApp({dbPath:':memory:',botDelay:60000});
   try{
-    let r=await app.inject({url:'/api/state'});assert.deepEqual(r.json().settings,{speed:'normal',revision:0});
+    let r=await app.inject({url:'/api/state'});assert.deepEqual(r.json().settings,{speed:'normal',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:0});
     const cookies={belot:r.cookies[0].value};
     r=await app.inject({method:'POST',url:'/api/settings',cookies,payload:{speed:'slow',requestId:'settings-slow'}});assert.equal(r.statusCode,200);assert.equal(r.json().game,null);assert.equal(r.json().settings.speed,'slow');
     r=await app.inject({method:'POST',url:'/api/games',cookies,payload:{difficulty:'hard',requestId:'settings-game'}});const before=r.json().game;
@@ -85,7 +85,7 @@ test('old saved games are migrated without changing cards, score, phase or revis
   try{
     const restored=store.load('s')!;assert.equal(restored.revision,g.revision);assert.deepEqual(restored.hands,g.hands);assert.deepEqual(restored.scores,g.scores);assert.equal(restored.phase,g.phase);
     assert.equal(restored.events[0].text,'Купа');assert.equal(restored.events[0].player,0);assert.equal(restored.events[0].revision,-1);
-    assert.deepEqual(store.settings('s'),{speed:'slow',revision:1});assert.deepEqual(store.settings('new-session'),{speed:'normal',revision:0});
+    assert.deepEqual(store.settings('s'),{speed:'slow',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:1});assert.deepEqual(store.settings('new-session'),{speed:'normal',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:0});
     store.save('s',restored);assert.deepEqual(store.load('s'),restored);
   }finally{store.close();rmSync(dir,{recursive:true});}
 });
@@ -114,6 +114,6 @@ test('existing session settings migrate to independent revisions without losing 
   const dir=mkdtempSync(join(tmpdir(),'belot-settings-')),path=join(dir,'old.sqlite');
   const db=new DatabaseSync(path);db.exec("CREATE TABLE settings(session TEXT PRIMARY KEY,speed TEXT NOT NULL);INSERT INTO settings VALUES('s','fast')");db.close();
   const store=new Store(path);
-  try{assert.deepEqual(store.settings('s'),{speed:'fast',revision:0});store.saveSettings('s',{speed:'slow'},'upgrade-settings');assert.deepEqual(store.settings('s'),{speed:'slow',revision:1});}
+  try{assert.deepEqual(store.settings('s'),{speed:'fast',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:0});store.saveSettings('s',{speed:'slow'},'upgrade-settings');assert.deepEqual(store.settings('s'),{speed:'slow',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:1});}
   finally{store.close();rmSync(dir,{recursive:true});}
 });

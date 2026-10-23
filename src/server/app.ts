@@ -84,13 +84,21 @@ export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay
   app.get('/api/state',async(req)=>{
     const session=req.cookies.belot!;schedule(session);return response(session);
   });
-  app.post<{Body:{speed:Settings['speed'];requestId:string}}>('/api/settings',{
-    schema:{body:{type:'object',additionalProperties:false,required:['speed','requestId'],properties:{speed:{enum:['slow','normal','fast']},requestId:{type:'string',minLength:8,maxLength:100}}}}
+  app.post<{Body:{speed?:Settings['speed'];allowContraEscape?:boolean;multiplyAnnouncements?:boolean;higherFourWins?:boolean;requestId:string}}>('/api/settings',{
+    schema:{body:{type:'object',additionalProperties:false,required:['requestId'],anyOf:[{required:['speed']},{required:['allowContraEscape']},{required:['multiplyAnnouncements']},{required:['higherFourWins']}],properties:{speed:{enum:['slow','normal','fast']},allowContraEscape:{type:'boolean'},multiplyAnnouncements:{type:'boolean'},higherFourWins:{type:'boolean'},requestId:{type:'string',minLength:8,maxLength:100}}}}
   },async(req)=>{
     const session=req.cookies.belot!;
     if(!store.hasRequest(session,req.body.requestId)) {
-      store.saveSettings(session,{speed:req.body.speed},req.body.requestId);
-      const g=get(session);if(g)scheduler.retime(session,delay(session,g));
+      const g=get(session),{speed,allowContraEscape,multiplyAnnouncements,higherFourWins,requestId}=req.body;
+      const rules={...(allowContraEscape===undefined?{}:{allowContraEscape}),...(multiplyAnnouncements===undefined?{}:{multiplyAnnouncements}),...(higherFourWins===undefined?{}:{higherFourWins})};
+      const changed=g&&((allowContraEscape!==undefined&&(g.allowContraEscape??false)!==allowContraEscape)||
+        (multiplyAnnouncements!==undefined&&(g.multiplyAnnouncements??false)!==multiplyAnnouncements)||
+        (higherFourWins!==undefined&&(g.higherFourWins??true)!==higherFourWins));
+      const updated=changed?{...g,...rules,revision:g.revision+1}:undefined;
+      const patch={...(speed===undefined?{}:{speed}),...rules};
+      store.saveSettings(session,patch,requestId,updated);
+      if(updated){games.set(session,updated);scheduler.cancel(session);}
+      else if(g)scheduler.retime(session,delay(session,g));
       broadcast(session);schedule(session);
     }
     return response(session);
@@ -101,7 +109,7 @@ export async function createApp(options: {dev?:boolean; dbPath?:string; botDelay
     const session=req.cookies.belot!,id=req.body.requestId;
     if(store.hasRequest(session,id)) return response(session);
     scheduler.cancel(session);
-    const g=newGame(req.body.difficulty);
+    const g=newGame(req.body.difficulty,Math.random,store.settings(session));
     g.botModelId=g.difficulty==='hard'?modelForNewMatch(modelRegistryDir):null;
     games.set(session,g);publish(session,g,id);schedule(session);
     return response(session);

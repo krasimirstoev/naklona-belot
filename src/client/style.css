@@ -35,3 +35,7 @@ dialog{background:#1a0f0f;color:var(--paper);border:1px solid #aa7654;border-rad
 @media(max-width:620px){.brand-logo{width:96px}.table-brand{width:76px;right:10px;top:17px}.preview-table .table-brand{width:100px;right:13px;top:13px}.game-table .table-brand{left:10px}}
 @media(max-width:380px){.brand-logo{width:90px}.game-table .table-brand{width:70px;left:9px}}
 @media(max-height:560px) and (orientation:landscape){.brand-logo{width:90px}}
+
+.rule-setting{display:flex;align-items:center;gap:10px;margin-top:28px;font-size:14px}.rule-setting input{flex-shrink:0}.rule-setting+p{margin-top:10px}
+
+.declaration-results{margin-top:18px;border-top:1px solid #ffffff25;padding-top:12px}.declaration-results h4{font-size:12px;margin:0 0 12px}.declaration-results ul{list-style:none;padding:0;margin:0;display:grid;gap:12px}.declaration-results li{display:grid;gap:4px;font-size:12px;overflow-wrap:anywhere}.declaration-results li>strong{font-size:11px}.declaration-results small,.declaration-results p{font-size:10px;line-height:1.5}.declaration-results li[data-status=counted] small{font-weight:700}.declaration-cards{font-size:11px;letter-spacing:.2px}.declaration-results p{margin-bottom:0}

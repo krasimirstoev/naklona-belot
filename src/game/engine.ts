@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import {resolveDeclarations} from './declaration-resolution.js';
 import { SUITS, RANKS, CONTRACTS, type Card, type Contract, type Suit, type Rank, type Play, type Game, type View, type Action, type Bid, type Difficulty, type Declaration, type RoundResult, type AnnouncementEvent, BID_LABEL, NAMES } from './types.js';
 
 export const suit = (c: Card) => c.split('-')[0] as Suit;
@@ -58,15 +59,11 @@ export function declarations(hand: Card[], contract: Contract): Declaration[] {
     if(cards.every(c=>hand.includes(c))) found.push({id:`four-${r}`,kind:'four',value:r==='J'?200:r==='9'?150:100,strength:fourOrder.indexOf(r),label:`Каре ${r}`,cards});
   } return found;
 }
-export function declarationPoints(ann: Game['announcements']): number[] {
+export function declarationPoints(ann: Game['announcements'], higherFourWins=true): number[] {
   const result=[0,0];
-  for(const kind of ['sequence','four']) {
-    const subset=ann.filter(a=>a.kind===kind);
-    const maxima=[0,1].map(t=>Math.max(-1,...subset.filter(a=>team(a.player)===t).map(a=>a.strength)));
-    if(maxima[0]===maxima[1]) continue;
-    const t=maxima[0]>maxima[1]?0:1;
-    result[t]+=subset.filter(a=>team(a.player)===t).reduce((sum,a)=>sum+a.value,0);
-  } return result;
+  const statuses=resolveDeclarations(ann,higherFourWins);
+  ann.forEach((a,i)=>{if(statuses[i]==='counted')result[team(a.player)]+=a.value;});
+  return result;
 }
 export function availableBelots(hand: Card[], trick: Play[], contract: Contract, announced: Game['belots'], player: number): Card[] {
   if(contract==='NT') return [];
@@ -75,8 +72,9 @@ export function availableBelots(hand: Card[], trick: Play[], contract: Contract,
     !announced.some(b=>b.player===player && b.suit===suit(c)) &&
     (contract!=='AT' || !trick.length || suit(c)===suit(trick[0].card)));
 }
-export function legalBids(g: Pick<Game,'contract'|'declarer'|'multiplier'>, player: number): Bid[] {
-  const bids: Bid[]=['pass',...CONTRACTS.filter(c=>!g.contract || CONTRACTS.indexOf(c)>CONTRACTS.indexOf(g.contract))];
+export function legalBids(g: Pick<Game,'contract'|'declarer'|'multiplier'|'allowContraEscape'>, player: number): Bid[] {
+  const locked=g.multiplier>1&&!g.allowContraEscape;
+  const bids: Bid[]=['pass',...CONTRACTS.filter(c=>!locked&&(!g.contract || CONTRACTS.indexOf(c)>CONTRACTS.indexOf(g.contract)))];
   if(g.declarer!==null) {
     if(g.multiplier===1 && team(player)!==team(g.declarer)) bids.push('contra');
     if(g.multiplier===2 && team(player)===team(g.declarer)) bids.push('recontra');
@@ -90,8 +88,8 @@ export function deal(g: Game, rng=Math.random) {
   g.multiplier=1;g.passes=0;g.calls=[];g.trick=[];g.tricks=[];g.announcements=[];g.belots=[];
   g.message='Пет карти. Време е за обявяване.';
 }
-export function newGame(difficulty: Difficulty, rng=Math.random): Game {
-  const g: Game={botModelId:null,events:[],eventSeq:0,id:randomUUID(),revision:0,difficulty,phase:'bidding',dealer:3,turn:0,round:1,hands:[],stock:[],contract:null,declarer:null,multiplier:1,passes:0,calls:[],trick:[],tricks:[],announcements:[],belots:[],scores:[0,0],hanging:0,results:[],message:''};
+export function newGame(difficulty: Difficulty, rng=Math.random, rules: {allowContraEscape?:boolean;multiplyAnnouncements?:boolean;higherFourWins?:boolean} = {}): Game {
+  const g: Game={higherFourWins:rules.higherFourWins??true,multiplyAnnouncements:rules.multiplyAnnouncements??false,allowContraEscape:rules.allowContraEscape??false,botModelId:null,events:[],eventSeq:0,id:randomUUID(),revision:0,difficulty,phase:'bidding',dealer:3,turn:0,round:1,hands:[],stock:[],contract:null,declarer:null,multiplier:1,passes:0,calls:[],trick:[],tricks:[],announcements:[],belots:[],scores:[0,0],hanging:0,results:[],message:''};
   deal(g,rng); return g;
 }
 export function roundedPair(raw: number[], contract: Contract, declarer: number): number[] {
@@ -101,29 +99,33 @@ export function roundedPair(raw: number[], contract: Contract, declarer: number)
   if(raw.every(n=>n%10===boundary)) out[raw[0]===raw[1]?declarer:raw[0]<raw[1]?0:1]++;
   return out;
 }
-export function calculateResult(g: Pick<Game,'contract'|'declarer'|'multiplier'|'announcements'|'belots'|'tricks'|'scores'|'hanging'|'round'>): RoundResult {
+export function calculateResult(g: Pick<Game,'contract'|'declarer'|'multiplier'|'announcements'|'belots'|'tricks'|'scores'|'hanging'|'round'|'multiplyAnnouncements'|'higherFourWins'>): RoundResult {
   const contract=g.contract!, declaring=team(g.declarer!), defending=1-declaring;
   const cardPoints=[0,0],belotPoints=[0,0];
   for(const t of g.tricks) cardPoints[team(t.winner)]+=t.plays.reduce((n,p)=>n+points(p.card,contract),0);
   cardPoints[team(g.tricks.at(-1)!.winner)]+=contract==='NT'?20:10;
   const capot=g.tricks.every(t=>team(t.winner)===team(g.tricks[0].winner));
   if(capot) cardPoints[team(g.tricks[0].winner)]+=90;
-  const dp=declarationPoints(g.announcements);
+  const dp=declarationPoints(g.announcements,g.higherFourWins??true);
   for(const b of g.belots) belotPoints[team(b.player)]+=20;
   const raw=cardPoints.map((n,i)=>n+dp[i]+belotPoints[i]);
   const outcome=raw[declaring]>raw[defending]?'made':raw[declaring]<raw[defending]?'failed':'hanging';
   const added=[0,0]; let hanging=g.hanging;
-  const all=Math.round((raw[0]+raw[1])*g.multiplier/10);
+  // Валатът отменя контрата и реконтрата; запазваме обявения множител в Game.
+  const multiplier=capot?1:g.multiplier;
+  const announcementMultiplier=g.multiplyAnnouncements?multiplier:1;
+  const announcementTotal=dp.reduce((n,x)=>n+x,0)+belotPoints.reduce((n,x)=>n+x,0);
+  const all=Math.round(((cardPoints[0]+cardPoints[1])*multiplier+announcementTotal*announcementMultiplier)/10);
   if(outcome==='hanging') {
-    if(g.multiplier>1) hanging+=all;
+    if(multiplier>1) hanging+=all;
     else { const pair=roundedPair(raw,contract,declaring); added[defending]=pair[defending]; hanging+=pair[declaring]; }
   } else {
     const won=outcome==='made'?declaring:defending;
-    if(g.multiplier>1 || outcome==='failed') added[won]=all;
+    if(multiplier>1 || outcome==='failed') added[won]=all;
     else { const pair=roundedPair(raw,contract,declaring); added[0]=pair[0];added[1]=pair[1]; }
     added[won]+=hanging; hanging=0;
   }
-  return {number:g.round,contract,declarer:g.declarer!,multiplier:g.multiplier,cardPoints,declarationPoints:dp,belotPoints,raw,added,total:g.scores.map((n,i)=>n+added[i]),hanging,outcome,capot};
+  return {number:g.round,contract,declarer:g.declarer!,multiplier,cardPoints,declarationPoints:dp,belotPoints,raw,added,total:g.scores.map((n,i)=>n+added[i]),hanging,outcome,capot};
 }
 function announce(g: Game, player: number, kind: AnnouncementEvent['kind'], text: string, bid?: Bid) {
   g.events.push({id:++g.eventSeq,round:g.round,revision:g.revision+1,player,kind,text,...(bid?{bid}:{})});
@@ -132,6 +134,9 @@ function announce(g: Game, player: number, kind: AnnouncementEvent['kind'], text
 // information that was public, preserving the original state and revision.
 export function hydrateGame(g: Game): Game {
   g.botModelId ??= null;
+  g.allowContraEscape ??= false;
+  g.multiplyAnnouncements ??= false;
+  g.higherFourWins ??= true;
   if(Array.isArray(g.events)) {g.eventSeq??=Math.max(0,...g.events.map(e=>e.id));return g;}
   g.events=[];g.eventSeq=0;
   for(const c of g.calls)announce(g,c.player,'bid',BID_LABEL[c.bid],c.bid);
@@ -202,7 +207,7 @@ export function view(g: Game, seat=0): View {
   const own=g.hands[seat];
   return {events:g.events.map(e=>({...e})),id:g.id,revision:g.revision,difficulty:g.difficulty,phase:g.phase,dealer:g.dealer,turn:g.turn,round:g.round,
     hand:[...own].sort((a,b)=>SUITS.indexOf(suit(a))-SUITS.indexOf(suit(b)) || RANKS.indexOf(rank(a))-RANKS.indexOf(rank(b))),
-    counts:g.hands.map(h=>h.length),contract:g.contract,declarer:g.declarer,multiplier:g.multiplier,
+    counts:g.hands.map(h=>h.length),allowContraEscape:g.allowContraEscape??false,multiplyAnnouncements:g.multiplyAnnouncements??false,higherFourWins:g.higherFourWins??true,contract:g.contract,declarer:g.declarer,multiplier:g.multiplier,
     calls:g.calls,trick:g.trick,tricks:g.tricks,
     announcements:g.announcements.map(a=>a.player===seat || ['roundEnd','matchEnd'].includes(g.phase)?a:{...a,cards:[],id:'hidden',strength:0,label:a.kind==='four'?'Каре':a.label,value:a.kind==='four'?0:a.value}),
     belots:g.belots,scores:g.scores,hanging:g.hanging,results:g.results,message:g.message,seat,

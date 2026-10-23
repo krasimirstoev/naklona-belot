@@ -2,7 +2,7 @@ import type { Card } from './types.js';
 import type { BotKnowledge, BotPosition } from './bot-knowledge.js';
 
 /** Равномерно сред пълните разпределения, допускащи публичните ограничения и бройките. */
-export function createHandSampler(v: BotPosition,k: BotKnowledge): {distributions:number; sample:(rng:()=>number)=>Card[][]}|null {
+export function createHandSampler(v: BotPosition,k: BotKnowledge): {distributions:number; sample:(rng:()=>number)=>Card[][]; enumerate:()=>Generator<Card[][],void,unknown>}|null {
   if(v.hand.length!==v.counts[v.seat]||v.counts.some(n=>!Number.isInteger(n)||n<0||n>8)||
     k.unknown.length!==v.counts.reduce((n,c,p)=>n+(p===v.seat?0:c),0)) return null;
   const seats=[0,1,2,3].filter(p=>p!==v.seat);
@@ -19,7 +19,19 @@ export function createHandSampler(v: BotPosition,k: BotKnowledge): {distribution
   }
   const distributions=completions(0,[...capacities]);
   if(!distributions) return null;
-  return {distributions,sample(rng){
+  function* enumerate():Generator<Card[][],void,unknown> {
+    const hands:Card[][]=[[],[],[],[]],left=[...capacities];hands[v.seat]=[...v.hand];
+    function* visit(i:number):Generator<Card[][],void,unknown> {
+      if(i===cards.length){yield hands.map(h=>[...h]);return;}
+      for(const p of owners[i])if(left[p]>0){
+        left[p]--;hands[seats[p]].push(cards[i]);
+        if(completions(i+1,left)>0)yield* visit(i+1);
+        hands[seats[p]].pop();left[p]++;
+      }
+    }
+    yield* visit(0);
+  }
+  return {distributions,enumerate,sample(rng){
     const hands:Card[][]=[[],[],[],[]],left=[...capacities];hands[v.seat]=[...v.hand];
     for(let i=0;i<cards.length;i++) {
       let ticket=rng()*completions(i,left);

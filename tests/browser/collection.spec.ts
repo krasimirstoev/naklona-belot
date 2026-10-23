@@ -6,7 +6,7 @@ async function mockTable(page:import('@playwright/test').Page,reduced=false){
   const game:View={...view(newGame('medium')),phase:'trick',contract:'H',trick:[
     {player:0,card:'H-A'},{player:1,card:'H-7'},{player:2,card:'H-8'},{player:3,card:'H-9'}
   ]};
-  const state=(game:View):StateResponse=>({game,settings:{speed:'fast',revision:0}});
+  const state=(game:View):StateResponse=>({game,settings:{speed:'fast',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:0}});
   if(reduced)await page.emulateMedia({reducedMotion:'reduce'});
   await page.addInitScript(()=>{
     class Source {
@@ -45,7 +45,7 @@ test('collected cards travel to each winner, including the last trick',async({pa
         return Math.hypot(bounds.x+bounds.width/2-target.x-target.width/2,bounds.y+bounds.height/2-target.y-target.height/2);
       });
       return {winner,count:animations.length,distances};
-    },{game:after,settings:{speed:'fast',revision:0}});
+    },{game:after,settings:{speed:'fast',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:0}});
     expect(result.winner).toBe(winner);expect(result.count).toBe(4);
     expect(result.distances.every(d=>d<3)).toBe(true);
     await page.evaluate(()=>document.querySelector('.collecting-trick')!.getAnimations({subtree:true}).forEach(a=>a.play()));
@@ -60,7 +60,7 @@ test('reduced motion skips collection and reload does not replay it',async({page
   await emit(collected);
   await expect(page.locator('.trick-area > .played-card')).toHaveCount(0);
   await expect(page.locator('.collecting-trick')).toHaveCount(0);
-  await page.route('**/api/state',route=>route.fulfill({json:{game:collected,settings:{speed:'fast',revision:0}}}));
+  await page.route('**/api/state',route=>route.fulfill({json:{game:collected,settings:{speed:'fast',allowContraEscape:false,multiplyAnnouncements:false,higherFourWins:true,revision:0}}}));
   await page.emulateMedia({reducedMotion:'no-preference'});
   await page.evaluate(()=>localStorage.setItem('reduced','false'));
   await page.reload();

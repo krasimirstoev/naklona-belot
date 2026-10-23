@@ -1,3 +1,4 @@
+import { assessNoTrump, evaluateNoTrump, type NoTrumpOptions } from './bot-no-trump.js';
 import { analyzeCardTactics, analyzeTacticalContext } from './bot-analysis.js';
 export { analyzeCardTactics, analyzeTacticalContext } from './bot-analysis.js';
 import { strategicCandidates, type StrategyAssessment } from './bot-strategy.js';
@@ -7,20 +8,23 @@ import { buildKnowledge, type BotKnowledge, type BotPosition } from './bot-knowl
 
 export interface BotReason { id: string; contribution: number; facts: string[] }
 export interface CardEvaluation { card: Card; score: number; reasons: BotReason[]; utility?: number[]; supported?:boolean }
-export interface SearchDiagnostics { completedBatches: number; abortedBatches: number; uniqueSamples: number; sampleAttempts?:number; rejectedSamples?:number; fallback: boolean; objective: string[] }
+export interface SearchDiagnostics { completedBatches: number; abortedBatches: number; uniqueSamples: number; sampleAttempts?:number; rejectedSamples?:number; fallback: boolean; objective: string[]; exhaustive?:boolean; minimumBatches?:number; lowConfidence?:boolean }
 export interface BotDecision { card: Card; reasons: BotReason[]; candidates: CardEvaluation[]; strategy?: StrategyAssessment; search?: SearchDiagnostics }
 
 /** Shared public-information policy for medium play and hard rollouts. */
-export function decideTacticalCard(v: BotPosition, legal = legalCards(v.hand, v.trick, v.contract!, v.seat), knowledge = buildKnowledge(v)): BotDecision {
+export function decideTacticalCard(v: BotPosition, legal = legalCards(v.hand, v.trick, v.contract!, v.seat), knowledge = buildKnowledge(v), ntOptions: NoTrumpOptions = {}): BotDecision {
   if (!legal.length) throw new Error('Bot has no legal card');
   const k = knowledge, contract = v.contract!;
   const context = analyzeTacticalContext(v,k);
+  const nt = contract==='NT' ? assessNoTrump(v,k) : null;
   const candidates = legal.map(card => {
     const reasons: BotReason[] = [];
     const analysis = analyzeCardTactics(v, card, k, context, k.declaringTeam !== null && k.declaringTeam !== team(v.seat));
     const add = (id: string, contribution: number, ...facts: string[]) => reasons.push({ id, contribution, facts });
     const cost = points(card, contract) * .35 + strength(card, contract) * .1;
-    if (!v.trick.length) {
+    if (nt) {
+      reasons.push(...evaluateNoTrump(v,k,card,nt,ntOptions));
+    } else if (!v.trick.length) {
       add('base.lead', k.masters.includes(card) ? 12 + points(card, contract) * .25 : -cost,
         k.masters.includes(card) ? 'Няма по-силна неизвестна карта в боята.' : 'Предпочитаме евтина карта при липса на друг план.');
     } else if (team(k.currentWinner!) === team(v.seat)) {
@@ -75,11 +79,21 @@ export function decideTacticalCard(v: BotPosition, legal = legalCards(v.hand, v.
 }
 
 /** Планът избира предпочитано множество; тактическата оценка разрешава равенствата. */
-export function decideCard(v: BotPosition, legal = legalCards(v.hand,v.trick,v.contract!,v.seat), knowledge = buildKnowledge(v)): BotDecision {
-  const tactical = decideTacticalCard(v,legal,knowledge);
-  const strategy = strategicCandidates(v,knowledge,legal);
+export function decideCard(v: BotPosition, legal = legalCards(v.hand,v.trick,v.contract!,v.seat), knowledge = buildKnowledge(v), ntOptions: NoTrumpOptions = {}): BotDecision {
+  const tactical = decideTacticalCard(v,legal,knowledge,ntOptions);
+  let strategy = strategicCandidates(v,knowledge,legal);
   const pool = tactical.candidates.filter(c=>strategy.preferred.includes(c.card));
   const best = pool.reduce((a,b)=>b.score>a.score?b:a);
+  if(v.contract==='NT'&&strategy.plan==='BALANCED_PLAY') {
+    const wins=winner([...v.trick,{player:v.seat,card:best.card}],'NT')===v.seat;
+    const duck=v.trick.length>0&&!wins&&legal.some(card=>winner([...v.trick,{player:v.seat,card}],'NT')===v.seat);
+    const plan=best.reasons.some(r=>r.id==='NT_CONTRACT_OBJECTIVE')?'SECURE_CONTRACT':
+      duck?'DUCK_TRICK':!v.trick.length&&knowledge.masters.includes(best.card)?'CASH_WINNERS':
+      v.trick.length&&!wins?'PRESERVE_ENTRY':'BALANCED_PLAY';
+    strategy={...strategy,plan,preferred:[best.card],objective:'Сравняваме прибиране на точки, запазени ресурси и качество на продължението.',
+      facts:best.reasons.flatMap(r=>r.facts),assumptions:['Вероятностите за притежание и бъдещата стойност са приближения, не гаранция за договора.'],
+      invalidatedBy:['Всяка нова публична карта променя блокерите, входовете и оставащите точки.']};
+  }
   const candidates = tactical.candidates.map(c=>({...c,reasons:[...c.reasons,{
     id: strategy.preferred.includes(c.card)?'plan.preferred':'plan.alternative', contribution:0,
     facts:[strategy.plan,...strategy.facts, ...(strategy.preferred.includes(c.card)?[]:['Има допустим ход, който запазва повече от ресурсите на избрания план.'])]

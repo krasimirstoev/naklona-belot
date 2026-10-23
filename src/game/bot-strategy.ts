@@ -3,7 +3,7 @@ import { possiblePlays, analyzeCardTactics, analyzeTacticalContext } from './bot
 import { SUITS, type Card, type Suit } from './types.js';
 import type { BotKnowledge, BotPosition } from './bot-knowledge.js';
 
-export type StrategyPlan = 'SUPPORT_PARTNER'|'PROTECT_TEN'|'DRAW_TRUMPS'|'PRESERVE_TRUMPS'|'CASH_WINNERS'|'STOP_DRAWING'|'FORCE_DECLARER'|'DEVELOP_SUIT'|'BALANCED_PLAY';
+export type StrategyPlan = 'OPEN_PARTNER_SUIT'|'SUPPORT_PARTNER'|'PROTECT_TEN'|'DRAW_TRUMPS'|'PRESERVE_TRUMPS'|'CASH_WINNERS'|'STOP_DRAWING'|'FORCE_DECLARER'|'DEVELOP_SUIT'|'BALANCED_PLAY'|'DUCK_TRICK'|'PRESERVE_ENTRY'|'SECURE_CONTRACT';
 export interface StrategyAssessment {
   plan: StrategyPlan; objective: string; facts: string[]; assumptions: string[];
   invalidatedBy: string[]; preferred: Card[];
@@ -32,11 +32,26 @@ export function tenGuardDiscard(v: BotPosition,k: BotKnowledge,card: Card): bool
     v.hand.filter(c=>suit(c)===s).length===2&&
     k.possibleOwners[`${s}-A`]?.some(p=>team(p)!==team(v.seat))===true;
 }
+/** The auction is a public partnership signal, not known card ownership. */
+export function partnerOpeningSuit(v:BotPosition):Suit|null {
+  if(v.trick.length||v.tricks.length||v.contract==='NT')return null;
+  const partner=(v.seat+2)%4;
+  const call=v.calls?.findLast(c=>c.player===partner&&SUITS.includes(c.bid as Suit));
+  if(!call)return null;
+  const announced=call.bid as Suit;
+  return v.contract===announced||v.contract==='AT'?announced:null;
+}
 export function strategicCandidates(v: BotPosition,k: BotKnowledge,legal: Card[]): StrategyAssessment {
   const context=analyzeTacticalContext(v,k),contract=v.contract!;
   const make=(plan:StrategyPlan,preferred:Card[],objective:string,facts:string[],invalidatedBy:string[],assumptions:string[]=[]):StrategyAssessment=>
     ({plan,preferred,objective,facts,invalidatedBy,assumptions});
   const partner=(v.seat+2)%4;
+  const opening=partnerOpeningSuit(v),support=legal.filter(c=>suit(c)===opening);
+  if(support.length)return make('OPEN_PARTNER_SUIT',support,'На първо излизане подаваме обявената от партньора боя.',
+    [`Партньорът е обявил ${opening}.`,contract==='AT'?'Крайният договор е всичко коз; обявената боя остава партньорски сигнал.':'Обявената партньорска боя е коз.',
+      'Това е първата карта от раздаването и имаме законен ход в тази боя.'],
+    ['Първата взятка е започнала.','Нямаме карта от обявената боя.','Крайният договор е друга боя или без коз.'],
+    ['Обявата показва предпочитана боя, но не доказва конкретни карти у партньора.']);
   if(v.trick.length&&k.currentWinner===partner) {
     const secure=legal.filter(c=>secureTeamTrick(v,k,c));
     // Храним със застрашени точки, преди да подаряваме бъдещи взятки или кратък коз.

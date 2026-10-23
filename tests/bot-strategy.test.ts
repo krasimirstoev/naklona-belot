@@ -129,7 +129,7 @@ test('Крайната оценка съвпада с двигателя за в
   if(multiplier===4)applyAction(g,g.turn,{type:'bid',bid:'recontra'});
   for(let p=0;p<3;p++)applyAction(g,g.turn,{type:'bid',bid:'pass'});
   playToEnd(g);const r=calculateResult(g);
-  assert.equal(r.multiplier,multiplier);
+  assert.equal(r.multiplier,r.capot?1:multiplier);
   for(const perspective of [0,1])assert.deepEqual(scorePosition(g,g.tricks,perspective),resultUtility(r,perspective));
  }
  const g=newGame('medium',seeded(7));g.hands=SUITS.map(s=>deck().filter(c=>suit(c)===s).slice(0,5));g.stock=SUITS.flatMap(s=>deck().filter(c=>suit(c)===s).slice(5));

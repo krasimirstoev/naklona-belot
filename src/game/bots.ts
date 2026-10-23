@@ -1,3 +1,5 @@
+import { partnerOpeningSuit } from './bot-strategy.js';
+import type { NoTrumpOptions } from './bot-no-trump.js';
 import { compareUtility, scorePosition, objectiveLabels, UTILITY_FIELDS, type UtilityObjective, type RoundUtility, type ScoringPosition } from './bot-objective.js';
 import { createHandSampler } from './bot-sampling.js';
 import { availableBelots, declarations, deck, legalCards, points, rank, strength, suit, team, winner } from './engine.js';
@@ -12,20 +14,44 @@ function bidValue(hand: Card[], contract: Contract): number {
   const trumps=hand.filter(c=>suit(c)===contract);
   return value + trumps.length*8 + (trumps.some(c=>rank(c)==='J')?9:0) - (trumps.length<2?25:0);
 }
+/** A sequence is announcement value, not evidence of trump control. With only
+ * five visible cards, prefer passing to relying on the three undealt cards. */
+function hasSuitBidSupport(hand:Card[],contract:Contract):boolean {
+  if(contract==='NT'||contract==='AT')return true;
+  const trumps=hand.filter(c=>suit(c)===contract),has=(r:string)=>trumps.some(c=>rank(c)===r);
+  const sideAces=hand.filter(c=>suit(c)!==contract&&rank(c)==='A').length;
+  if(trumps.length<3)return false;
+  if(has('J'))return has('9')||trumps.length>=4||((has('A')||has('10'))&&sideAces>0);
+  return trumps.length>=4&&has('9')&&has('A')&&sideAces>0;
+}
 export function basicAction(v: View, rng=Math.random): Action {
   if(v.phase==='bidding') {
-    const candidates=CONTRACTS.filter(c=>v.legalBids.includes(c)).map(c=>({c,value:bidValue(v.hand,c)})).sort((a,b)=>b.value-a.value);
+    const candidates=CONTRACTS.filter(c=>v.legalBids.includes(c)&&hasSuitBidSupport(v.hand,c)).map(c=>({c,value:bidValue(v.hand,c)})).sort((a,b)=>b.value-a.value);
     const jitter=v.difficulty==='easy'?(rng()-.5)*24:0;
-    const threshold=v.difficulty==='easy'?62:v.difficulty==='medium'?59:55;
-    if(v.legalBids.includes('recontra') && bidValue(v.hand,v.contract!)>85) return {type:'bid',bid:'recontra'};
-    if(v.legalBids.includes('contra') && bidValue(v.hand,v.contract!)>95) return {type:'bid',bid:'contra'};
-    if(candidates[0] && candidates[0].value+jitter>threshold && !(v.declarer!==null && team(v.declarer)===team(v.seat))) return {type:'bid',bid:candidates[0].c};
+    const threshold=v.difficulty==='easy'?62:59;
+    if(v.legalBids.includes('recontra') && hasSuitBidSupport(v.hand,v.contract!) && bidValue(v.hand,v.contract!)>85) return {type:'bid',bid:'recontra'};
+    if(v.legalBids.includes('contra') && hasSuitBidSupport(v.hand,v.contract!) && bidValue(v.hand,v.contract!)>95) return {type:'bid',bid:'contra'};
+    if(candidates[0] && candidates[0].value+jitter>threshold && (!(v.declarer!==null && team(v.declarer)===team(v.seat))||(v.allowContraEscape&&v.multiplier>1))) return {type:'bid',bid:candidates[0].c};
     return {type:'bid',bid:'pass'};
   }
   let card: Card;
-  if(v.difficulty==='easy') card=v.legalCards[Math.floor(rng()*v.legalCards.length)];
-  else card=decideCard(v,v.legalCards).card;
+  if(v.difficulty==='easy') {
+    const opening=partnerOpeningSuit(v),preferred=v.legalCards.filter(c=>suit(c)===opening);
+    const choices=preferred.length?preferred:v.legalCards;
+    card=choices[Math.floor(rng()*choices.length)];
+  }
+  else card=decideMediumCard(v).card;
   return playAction(v,card);
+}
+function doubledCapotAtStake(v:Pick<View,'multiplier'|'tricks'>):boolean {
+  return v.multiplier>1&&v.tricks.length>0&&v.tricks.every(t=>team(t.winner)===team(v.tricks[0].winner));
+}
+/** Bounded, deterministic endgame belief evaluation. At most 90 allocations
+ * with two cards per unseen hand; each continuation uses the existing solver. */
+export function decideMediumCard(v:View,noTrump:NoTrumpOptions={}):BotDecision {
+  if((v.contract==='NT'||doubledCapotAtStake(v))&&v.counts.reduce((n,x)=>n+x,0)<=8&&v.legalCards.length>1)
+    return decideHardCard(v,Infinity,()=>.5,100,{noTrump});
+  return decideCard(v,v.legalCards,undefined,noTrump);
 }
 export function selectDeclarations(options: Declaration[]): string[] {
   let best: Declaration[]=[],bestValue=-1;
@@ -70,8 +96,8 @@ export function sampleHands(v: View, rng=Math.random): Card[][] | null {
   }
   return null;
 }
-export interface HardSearchOptions { objective?:UtilityObjective; rollout?:'strategy'|'tactical'; selection?:'mean'|'supported' }
-interface RolloutState extends ScoringPosition {}
+export interface HardSearchOptions { objective?:UtilityObjective; rollout?:'strategy'|'tactical'; selection?:'mean'|'supported'; noTrump?:NoTrumpOptions; minimumBatches?:number }
+interface RolloutState extends ScoringPosition { calls?:View['calls'] }
 /** Видимият вид анонс ограничава извадката; чуждите му карти са хипотеза, не знание на играча. */
 function sampledAnnouncements(v:View,hands:Card[][],rng:()=>number):View['announcements']|null {
   const history=[...v.tricks.flatMap(t=>t.plays),...v.trick];
@@ -107,9 +133,9 @@ function simulation(hands:Card[][],trick:Play[],turn:number,state:RolloutState,p
     if(performance.now()>deadline)return null;
     if(hands.reduce((n,h)=>n+h.length,0)<=7)return search(hands,trick,turn,state,perspective,deadline,options);
     const position:BotPosition={hand:hands[turn],seat:turn,counts:hands.map(h=>h.length),contract:state.contract,declarer:state.declarer,
-      trick,tricks:state.tricks,belots:state.belots,
+      trick,tricks:state.tricks,belots:state.belots,calls:state.calls,
       announcements:state.announcements.map(a=>a.player===turn?a:{...a,cards:[],id:'hidden',strength:0,value:a.kind==='four'?0:a.value})};
-    const card=(options.rollout==='tactical'?decideTacticalCard(position):decideCard(position)).card;
+    const card=(options.rollout==='tactical'?decideTacticalCard(position):decideCard(position,undefined,undefined,options.noTrump)).card;
     announceRollout(state,hands[turn],trick,turn,card);
     hands[turn].splice(hands[turn].indexOf(card),1);trick.push({player:turn,card});
     if(trick.length===4){turn=winner(trick,state.contract!);state.tricks.push({plays:trick,winner:turn});trick=[];}
@@ -146,21 +172,22 @@ export function hardAction(v: View, budgetMs=220, rng=Math.random, maxIterations
 }
 /** Само вътрешна диагностика; публичният ход остава непроменен. */
 export function decideHardCard(v:View,budgetMs=220,rng=Math.random,maxIterations=100,options:HardSearchOptions={}):BotDecision {
-  const deadline=performance.now()+budgetMs,knowledge=buildKnowledge(v),tactical=decideCard(v,v.legalCards,knowledge);
+  const deadline=performance.now()+budgetMs,knowledge=buildKnowledge(v),tactical=decideCard(v,v.legalCards,knowledge,options.noTrump);
   const sampler=performance.now()<deadline-15?createHandSampler(v,knowledge):null;
+  const worlds=(v.contract==='NT'||doubledCapotAtStake(v))&&v.counts.reduce((n,x)=>n+x,0)<=8&&sampler&&sampler.distributions<=maxIterations?sampler.enumerate():undefined;
   const totals:RoundUtility[]=v.legalCards.map(()=>[0,0,0,0]);
   const tacticalIndex=v.legalCards.indexOf(tactical.card),supported=v.legalCards.map(()=>true);
   let iterations=0,abortedBatches=0,attempts=0,rejectedSamples=0;
   const unique=new Set<string>();
   while(iterations<maxIterations&&attempts<Math.max(100,maxIterations*10)&&performance.now()<deadline-15) {
-    const sampled=sampler?.sample(rng);if(!sampled)break;
+    const sampled=worlds?worlds.next().value:sampler?.sample(rng);if(!sampled)break;
     attempts++;
     const announcements=sampledAnnouncements(v,sampled,rng);if(!announcements){rejectedSamples++;continue;}
     const scores:RoundUtility[]=[];let complete=true;
     for(const card of v.legalCards) {
       if(performance.now()>deadline-2){complete=false;break;}
       const hands=sampled.map(h=>[...h]);
-      const state:RolloutState={contract:v.contract,declarer:v.declarer,multiplier:v.multiplier,scores:v.scores,hanging:v.hanging,round:v.round,
+      const state:RolloutState={contract:v.contract,declarer:v.declarer,multiplier:v.multiplier,scores:v.scores,hanging:v.hanging,round:v.round,multiplyAnnouncements:v.multiplyAnnouncements,higherFourWins:v.higherFourWins,calls:v.calls,
         announcements:announcements.map(a=>({...a})),belots:[...v.belots],tricks:[...v.tricks]};
       announceRollout(state,hands[v.seat],v.trick,v.seat,card);
       hands[v.seat].splice(hands[v.seat].indexOf(card),1);
@@ -177,19 +204,21 @@ export function decideHardCard(v:View,budgetMs=220,rng=Math.random,maxIterations
     });iterations++;
     unique.add(sampled.map(h=>[...h].sort().join(',')).join('|'));
   }
-  const searchInfo={completedBatches:iterations,abortedBatches,uniqueSamples:unique.size,sampleAttempts:attempts,rejectedSamples,fallback:!iterations,objective:objectiveLabels(options.objective)};
-  if(!iterations)return {...tactical,search:searchInfo,reasons:[...tactical.reasons,{
-    id:'search.fallback',contribution:0,facts:['Няма завършена сравнителна партида; използваме стратегическата политика.']
+  const minimumBatches=options.minimumBatches??(v.contract==='NT'?3:1);
+  const insufficient=(iterations<minimumBatches&&iterations!==(sampler?.distributions??-1))||!!worlds&&iterations!==sampler?.distributions;
+  const searchInfo={exhaustive:!!worlds&&iterations===sampler?.distributions,minimumBatches,lowConfidence:insufficient,completedBatches:iterations,abortedBatches,uniqueSamples:unique.size,sampleAttempts:attempts,rejectedSamples,fallback:!iterations||insufficient,objective:objectiveLabels(options.objective)};
+  if(!iterations||insufficient)return {...tactical,search:searchInfo,reasons:[...tactical.reasons,{
+    id:'search.fallback',contribution:0,facts:[`${iterations} завършени сравнителни партиди; изискваме поне ${minimumBatches}, освен при единствено допустимо разпределение. Използваме стратегическата политика.`]
   }]};
   let best=v.legalCards.indexOf(tactical.card);
-  for(let i=0;i<totals.length;i++) if((options.selection!=='supported'||supported[i])&&compareUtility(totals[i],totals[best],options.objective)>0)best=i;
+  for(let i=0;i<totals.length;i++) if((tactical.strategy?.plan!=='OPEN_PARTNER_SUIT'||tactical.strategy.preferred.includes(v.legalCards[i]))&&(options.selection!=='supported'||supported[i])&&compareUtility(totals[i],totals[best],options.objective)>0)best=i;
   const candidates=tactical.candidates.map((candidate,i)=>{
     const utility=totals[i].map(n=>n/iterations) as RoundUtility;
     return {card:candidate.card,score:utility[3],utility,supported:supported[i],reasons:[{
       id:'search.sampled-points',contribution:utility[3],facts:[`${iterations} завършени сравнителни партиди; средна разлика в общите картови точки.`]
     },{id:'search.contract-objective',contribution:0,facts:[`Лексикографска оценка: ${utility.join(', ')}.`,`Полета на вектора: ${UTILITY_FIELDS.join('; ')}.`,`Ред на целите: ${objectiveLabels(options.objective).join('; ')}.`,
       'Честотите са оценки върху допустими извадки, а не сигурни факти.','Бъдещите анонси и белоти следват автоматичната политика на ботовете.',
-      options.selection==='supported'&&!supported[i]?'Алтернативата е по-лоша от стратегическия избор в поне една завършена извадка; не заменя плана.':'Сравняваме завършените оценки без достъп до реалните чужди ръце.']},
+      tactical.strategy?.plan==='OPEN_PARTNER_SUIT'?'При първо излизане сравняваме ходовете в обявената партньорска боя.':options.selection==='supported'&&!supported[i]?'Алтернативата е по-лоша от стратегическия избор в поне една завършена извадка; не заменя плана.':'Сравняваме завършените оценки без достъп до реалните чужди ръце.']},
     {id:'search.tactical-order',contribution:0,facts:[`При равна крайна полезност предпочитаме плана ${tactical.strategy?.plan??'BALANCED_PLAY'} и карта ${tactical.card}.`,...candidate.reasons.flatMap(r=>[r.id,...r.facts])]}]};
   });
   return {card:candidates[best].card,reasons:candidates[best].reasons,candidates,strategy:tactical.strategy,search:searchInfo};

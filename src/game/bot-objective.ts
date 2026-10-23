@@ -1,7 +1,7 @@
 import { calculateResult, team } from './engine.js';
-import type { Game, RoundResult, View } from './types.js';
+import type { Game, RoundResult } from './types.js';
 
-export type ScoringPosition=Pick<Game,'contract'|'declarer'|'multiplier'|'announcements'|'belots'|'tricks'|'scores'|'hanging'|'round'>;
+export type ScoringPosition=Pick<Game,'contract'|'declarer'|'multiplier'|'announcements'|'belots'|'tricks'|'scores'|'hanging'|'round'|'multiplyAnnouncements'|'higherFourWins'>;
 export type RoundUtility=[matchOutcome:number,contractOutcome:number,scoreDifference:number,cardPointDifference:number];
 export type UtilityObjective='game-score'|'contract'|'points';
 export const UTILITY_FIELDS=['Изход на мача','Изпълнен наш или провален чужд договор','Разлика в записаните игрови точки','Разлика в картовите точки'];
@@ -18,6 +18,6 @@ export function resultUtility(r:RoundResult,perspective:number):RoundUtility {
   const made=r.outcome==='hanging'?0:((r.outcome==='made')===(declaring===perspective)?1:-1);
   return [match,made,r.added[perspective]-r.added[other],r.cardPoints[perspective]-r.cardPoints[other]];
 }
-export function scorePosition(v:Pick<View,'contract'|'declarer'|'multiplier'|'announcements'|'belots'|'scores'|'hanging'|'round'>, tricks:Game['tricks'], perspective:number):RoundUtility {
+export function scorePosition(v:Omit<ScoringPosition,'tricks'>, tricks:Game['tricks'], perspective:number):RoundUtility {
   return resultUtility(calculateResult({...v,tricks}),perspective);
 }

@@ -1,0 +1,68 @@
+{
+  "referenceFingerprint": "4edb4128123ae3630bc480333e3a9b4f014b40111960fd01854acea3c0b71c78",
+  "baselineFingerprint": "5a08b67ecabca32f6f1562da4580396c80378f0477de8d8f236c7ad301080a6d",
+  "description": "Сдвоени раздавания с разменени отбори; победа е изпълнен наш или провален чужд договор. Това не е оценка на цели мачове или наддаване.",
+  "a": "medium",
+  "b": "medium-nt-before",
+  "seedCount": 256,
+  "seedStart": 1001,
+  "mode": "фиксирани сравнителни партиди",
+  "batches": 4,
+  "budgetMs": 10000,
+  "confidence": {
+    "mean": 0.4658203125,
+    "lower": 0.43359375,
+    "upper": 0.4970703125,
+    "unit": "семе с всички договори и разменени отбори"
+  },
+  "contracts": [
+    {
+      "contract": "NT",
+      "rounds": 512,
+      "wins": 236,
+      "ties": 5,
+      "declaringRounds": 256,
+      "contractsMade": 123,
+      "defendingRounds": 256,
+      "contractsDefeated": 113,
+      "gamePointDifference": -777,
+      "cardPointDifference": -6168,
+      "capotsFor": 11,
+      "capotsAgainst": 23,
+      "lostHighCards": [
+        291,
+        260
+      ],
+      "unbeatenCardsCollected": [
+        2261,
+        2547
+      ]
+    }
+  ],
+  "computation": [
+    {
+      "policy": "medium",
+      "decisions": 8192,
+      "p50Ms": 0.3570870000003197,
+      "p95Ms": 0.7389620000012656,
+      "maxMs": 4.154371000000012,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    },
+    {
+      "policy": "medium-nt-before",
+      "decisions": 8192,
+      "p50Ms": 0.26808100000016566,
+      "p95Ms": 0.5439109999997527,
+      "maxMs": 2.2303660000000036,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    }
+  ]
+}

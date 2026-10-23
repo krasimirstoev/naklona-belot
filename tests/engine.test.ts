@@ -16,7 +16,7 @@ test('deck, 3+2 dealing, bidding with five cards and final three cards',()=>{
   assert.equal(g.phase,'playing');assert.equal(g.turn,0);assert.deepEqual(g.hands.map(h=>h.length),[8,8,8,8]);assert.equal(g.stock.length,0);assert.equal(new Set(g.hands.flat()).size,32);
 });
 test('four passes rotate dealer and redeal; contra resets passes; higher call cancels contra',()=>{
-  const g=newGame('easy',seeded());for(const p of [0,1,2,3])applyAction(g,p,{type:'bid',bid:'pass'});
+  const g=newGame('easy',seeded(),{allowContraEscape:true});for(const p of [0,1,2,3])applyAction(g,p,{type:'bid',bid:'pass'});
   assert.equal(g.dealer,0);assert.equal(g.turn,1);assert.equal(g.round,2);
   applyAction(g,1,{type:'bid',bid:'C'});assert.ok(!legalBids(g,3).includes('contra'));
   applyAction(g,2,{type:'bid',bid:'contra'});assert.equal(g.multiplier,2);assert.equal(g.passes,0);

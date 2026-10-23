@@ -1,0 +1,98 @@
+{
+  "split": "development",
+  "rotations": 1,
+  "noTrumpBaselineFingerprint": "914565fbb235674599f5fd057bbba548fc95a4bd1e285435aa338d78a5fe341b",
+  "metricDefinitions": {
+    "longSuitRuns": "Initially 3+ card suit; same player leads and wins it at least twice. Proxy, not causal proof of development.",
+    "lostMasters": "Public master played into an opponent-won trick; includes forced plays.",
+    "avoidableTenLosses": "Ten lost despite a different legal move provably securing this trick for our team; local opportunity, not proof of globally inferior play.",
+    "endgamePoints": "Points captured in tricks 7 and 8 including last-trick bonus; excludes capot.",
+    "games": "--games/--seeds counts independent deals, each with paired team assignments and optional seat rotations."
+  },
+  "referenceFingerprint": "361a1b8a3e0af8a9e7eeea1dcb6eeddf1683d98ca7a98220378236d4f93de633",
+  "baselineFingerprint": "5a08b67ecabca32f6f1562da4580396c80378f0477de8d8f236c7ad301080a6d",
+  "description": "Сдвоени раздавания с разменени отбори; победа е изпълнен наш или провален чужд договор. Това не е оценка на цели мачове или наддаване.",
+  "a": "nt-no-retention",
+  "b": "medium-nt-before",
+  "seedCount": 256,
+  "seedStart": 1001,
+  "mode": "фиксирани сравнителни партиди",
+  "batches": 4,
+  "budgetMs": 10000,
+  "confidence": {
+    "mean": 0.478515625,
+    "lower": 0.4609375,
+    "upper": 0.4951171875,
+    "unit": "семе с всички договори и разменени отбори"
+  },
+  "contracts": [
+    {
+      "contract": "NT",
+      "rounds": 512,
+      "wins": 242,
+      "ties": 6,
+      "declaringRounds": 256,
+      "contractsMade": 134,
+      "defendingRounds": 256,
+      "contractsDefeated": 108,
+      "gamePointDifference": -437,
+      "cardPointDifference": -2322,
+      "capotsFor": 22,
+      "capotsAgainst": 25,
+      "lostHighCards": [
+        349,
+        326
+      ],
+      "unbeatenCardsCollected": [
+        2352,
+        2399
+      ],
+      "tricksWon": [
+        2043,
+        2053
+      ],
+      "endgamePoints": [
+        23170,
+        26538
+      ],
+      "lostMasters": [
+        1000,
+        963
+      ],
+      "avoidableTenLosses": [
+        0,
+        0
+      ],
+      "longSuitRuns": [
+        244,
+        239
+      ]
+    }
+  ],
+  "computation": [
+    {
+      "policy": "nt-no-retention",
+      "decisions": 8192,
+      "p50Ms": 0.5010990000000675,
+      "p95Ms": 1.2055830000001606,
+      "maxMs": 4.236254999999801,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    },
+    {
+      "policy": "medium-nt-before",
+      "decisions": 8192,
+      "p50Ms": 0.3842420000000857,
+      "p95Ms": 0.9135450000012497,
+      "maxMs": 4.406682000000046,
+      "searchCalls": 0,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 0,
+      "abortedBatches": 0
+    }
+  ]
+}

@@ -13,6 +13,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "assets": "node scripts/cards.mjs",
+    "train:bots": "node --import tsx scripts/bot-benchmark.ts",
     "bots:learn": ".venv-training/bin/python training/learn.py",
     "test:training": ".venv-training/bin/python -m unittest discover -s training -p 'test_*.py'"
   },

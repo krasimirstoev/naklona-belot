@@ -1,8 +1,9 @@
 // Преглед на реалното решение върху валидна позиция; не разкрива чуждите ръце.
+import ntCatalog from '../tests/fixtures/no-trump-positions.json' with {type:'json'};
 import catalog from '../tests/fixtures/strategy-positions.json' with {type:'json'};
 import {scenarioPosition,type TacticalScenario} from '../training/scenarios.js';
 import {decideCard} from '../src/game/bot-tactics.js';
-import {decideHardCard,basicAction,selectDeclarations} from '../src/game/bots.js';
+import {decideHardCard,decideMediumCard,basicAction,selectDeclarations} from '../src/game/bots.js';
 import {buildKnowledge} from '../src/game/bot-knowledge.js';
 import {suitLengthBounds} from '../src/game/bot-strategy.js';
 import {UTILITY_FIELDS} from '../src/game/bot-objective.js';
@@ -11,11 +12,11 @@ import {applyAction,newGame,view,rank,suit} from '../src/game/engine.js';
 import {CONTRACT_LABEL,SYMBOL,SUITS,type Card,type View} from '../src/game/types.js';
 
 const args=process.argv.slice(2),id=args[args.indexOf('--scenario')+1];
-const fixture=(catalog.cases as unknown as Pick<TacticalScenario,'id'|'hands'|'bids'|'history'|'preferredCards'>[]).find(c=>c.id===id);
-if(!fixture)throw Error(`Избери --scenario от: ${catalog.cases.map(c=>c.id).join(', ')}`);
+const fixture=([...catalog.cases,...ntCatalog.cases] as unknown as Pick<TacticalScenario,'id'|'hands'|'bids'|'history'|'preferredCards'>[]).find(c=>c.id===id);
+if(!fixture)throw Error(`Избери --scenario от: ${[...catalog.cases,...ntCatalog.cases].map(c=>c.id).join(', ')}`);
 const card=(c:Card)=>`${rank(c)}${SYMBOL[suit(c)]}`;
 function explain(v:View){
- const d=args.includes('--hard')?decideHardCard(v):decideCard(v,v.legalCards);
+ const d=args.includes('--hard')?decideHardCard(v):decideMediumCard(v);
  console.log(`Договор: ${CONTRACT_LABEL[v.contract!]}; място: ${v.seat}. Ръка: ${v.hand.map(card).join(' ')}.`);
  console.log(`Предишна политика: ${card(before(v).card)}. Нов избор: ${card(d.card)}.`);
  const knowledge=buildKnowledge(v);
@@ -27,7 +28,8 @@ function explain(v:View){
  for(const assumption of d.strategy?.assumptions??[])console.log(`  Предположение: ${assumption}`);
  for(const condition of d.strategy?.invalidatedBy??[])console.log(`  Планът се преоценява при: ${condition}`);
  for(const c of d.candidates)console.log(`  ${c.card===d.card?'*':' '} ${card(c.card)}: ${d.search?'обща разлика в картови точки':'тактическа оценка'} ${c.score.toFixed(2)}${c.utility?`; краен вектор ${c.utility.map(n=>n.toFixed(2)).join(', ')}`:''}`);
- if(d.search)console.log(`Симулации: ${d.search.completedBatches} завършени, ${d.search.abortedBatches} прекъснати; резервен избор: ${d.search.fallback?'да':'не'}.`);
+ for(const c of d.candidates)for(const r of c.reasons.filter(r=>r.id.startsWith('NT_')))console.log(`    ${card(c.card)} / ${r.id} (${r.contribution.toFixed(2)}): ${r.facts.join(' ')}`);
+ if(d.search)console.log(`Изчерпателни разпределения: ${d.search.exhaustive??false}; ниска увереност: ${d.search.lowConfidence??false}. Симулации: ${d.search.completedBatches} завършени, ${d.search.abortedBatches} прекъснати; резервен избор: ${d.search.fallback?'да':'не'}.`);
  return d;
 }
 console.log(`Сценарий: ${fixture.id}`);

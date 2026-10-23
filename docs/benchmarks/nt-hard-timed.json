@@ -1,0 +1,114 @@
+{
+  "split": "development",
+  "rotations": 1,
+  "scoringContext": {
+    "scores": [
+      0,
+      0
+    ],
+    "hanging": 0,
+    "multiplier": 1
+  },
+  "noTrumpBaselineFingerprint": "914565fbb235674599f5fd057bbba548fc95a4bd1e285435aa338d78a5fe341b",
+  "metricDefinitions": {
+    "longSuitRuns": "Initially 3+ card suit; same player leads and wins it at least twice. Proxy, not causal proof of development.",
+    "lostMasters": "Public master played into an opponent-won trick; includes forced plays.",
+    "avoidableTenLosses": "Ten lost despite a different legal move provably securing this trick for our team; local opportunity, not proof of globally inferior play.",
+    "endgamePoints": "Points captured in tricks 7 and 8 including last-trick bonus; excludes capot.",
+    "games": "--games/--seeds counts independent deals, each with paired team assignments and optional seat rotations."
+  },
+  "referenceFingerprint": "7056814b3f47ae580c4db2ac34edadfd95b24db78c5dbf8fd6dc478ac8a6817d",
+  "baselineFingerprint": "5a08b67ecabca32f6f1562da4580396c80378f0477de8d8f236c7ad301080a6d",
+  "description": "Сдвоени раздавания с разменени отбори; победа е изпълнен наш или провален чужд договор. Това не е оценка на цели мачове или наддаване.",
+  "a": "hard",
+  "b": "hard-nt-before",
+  "seedCount": 16,
+  "seedStart": 4000001,
+  "mode": "времеви бюджет",
+  "batches": 100,
+  "budgetMs": 220,
+  "confidence": {
+    "mean": 0.5625,
+    "lower": 0.4375,
+    "upper": 0.6875,
+    "unit": "семе с всички договори и разменени отбори"
+  },
+  "contracts": [
+    {
+      "contract": "NT",
+      "rounds": 32,
+      "wins": 18,
+      "ties": 0,
+      "declaringRounds": 16,
+      "contractsMade": 11,
+      "defendingRounds": 16,
+      "contractsDefeated": 7,
+      "gamePointDifference": -4,
+      "cardPointDifference": -408,
+      "capotsFor": 0,
+      "capotsAgainst": 0,
+      "lostHighCards": [
+        33,
+        25
+      ],
+      "unbeatenCardsCollected": [
+        129,
+        135
+      ],
+      "tricksWon": [
+        126,
+        130
+      ],
+      "endgamePoints": [
+        1156,
+        1640
+      ],
+      "lostMasters": [
+        65,
+        58
+      ],
+      "avoidableTenLosses": [
+        1,
+        4
+      ],
+      "longSuitRuns": [
+        9,
+        11
+      ],
+      "contractSuccessRate": 0.6875,
+      "contractDefeatRate": 0.4375,
+      "averageCardPointDifference": -12.75,
+      "averageFinalScoreDifference": -0.125,
+      "averageTricks": [
+        3.9375,
+        4.0625
+      ]
+    }
+  ],
+  "computation": [
+    {
+      "policy": "hard",
+      "decisions": 512,
+      "p50Ms": 205.57138500000292,
+      "p95Ms": 220.18553999999858,
+      "maxMs": 220.803934999989,
+      "searchCalls": 348,
+      "fallbacks": 3,
+      "fallbackRate": 0.008620689655172414,
+      "completedBatchesMean": 25.853448275862068,
+      "abortedBatches": 59
+    },
+    {
+      "policy": "hard-nt-before",
+      "decisions": 512,
+      "p50Ms": 205.55483300000196,
+      "p95Ms": 220.0888879999984,
+      "maxMs": 223.39776400000028,
+      "searchCalls": 351,
+      "fallbacks": 0,
+      "fallbackRate": 0,
+      "completedBatchesMean": 39.934472934472936,
+      "abortedBatches": 43
+    }
+  ]
+}

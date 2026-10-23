@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
+import {decideTacticalCard as frozenTacticalCard} from '../benchmarks/no-trump-baseline/bot-tactics.js';
 import manifest from '../src/game/learning-manifest.json' with {type:'json'};
 import {applyAction,deck,newGame,view,team} from '../src/game/engine.js';
 import {buildKnowledge} from '../src/game/bot-knowledge.js';
@@ -84,8 +84,7 @@ test('v2 facts and candidate features normalize seats and ignore hidden informat
  }
 });
 
-test('refactoring preserves complete heuristic decisions across every contract and reachable history',()=>{
- const hash=createHash('sha256');
+test('NT specialization preserves complete tactical decisions for the other contracts and reachable histories',()=>{
  for(const contract of CONTRACTS){
   let seed=59;const rng=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   const g=newGame('medium',rng);
@@ -94,11 +93,12 @@ test('refactoring preserves complete heuristic decisions across every contract a
    if(g.phase==='trick'){applyAction(g,-1,{type:'collect'});continue;}
    const v=view(g,g.turn);
    if(v.trick.length===3) for(const card of v.legalCards) assert.equal(analyzeCardTactics(v,card,buildKnowledge(v)).ruffRisk,false);
-   hash.update(JSON.stringify(decideTacticalCard(v)));
+   if(contract!=='NT')assert.deepEqual(decideTacticalCard(v),frozenTacticalCard(v));
    applyAction(g,g.turn,{type:'play',card:v.legalCards[Math.floor(rng()*v.legalCards.length)]});
   }
  }
- for(const s of scenarios) hash.update(JSON.stringify(decideTacticalCard(scenarioPosition(s))));
- // Frozen before refactoring: chosen cards, every candidate score, reason and supporting fact.
- assert.equal(hash.digest("hex"), "37247169dd006667b6b65323e6334d1326703f6276f9c889c1bffef6b371ba3d");
+ for(const s of scenarios){
+  const v=scenarioPosition(s);
+  if(v.contract!=='NT')assert.deepEqual(decideTacticalCard(v),frozenTacticalCard(v));
+ }
 });
