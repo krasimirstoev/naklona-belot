@@ -53,6 +53,89 @@ class CycleTests(unittest.TestCase):
             controller.step(1)
         self.assertEqual(controller.state['phase'], 'validation')
 
+    def test_changed_reference_can_inherit_weights_without_old_games_or_evidence(self):
+        with tempfile.TemporaryDirectory() as root:
+            source, destination = str(Path(root) / 'old'), str(Path(root) / 'new')
+            controller = Cycle(args(source))
+            controller.close()
+            session = learn.Session(source, workers=1, threads=2, seed=7)
+            try:
+                loss = session.network(torch.ones((1, learn.OBSERVATION_SIZE + learn.ACTION_SIZE))).sum()
+                loss.backward()
+                session.optimizer.step()
+                session.metrics.update(matches=200, pretrainUpdates=1000, collectSteps=10000)
+                session.dataset.append(('old-teacher',))
+                session.replay.append(('old-reward',))
+                session.environments['train'] = []
+                session.snapshot_network()
+                session.next_seed = {'collect': 10, 'train': 250}
+                session.save()
+            finally:
+                session.close()
+            checkpoint = Path(source) / 'checkpoint.pt'
+            saved = torch.load(checkpoint, weights_only=False)
+            saved['config']['referenceFingerprint'] = 'old-engine'
+            torch.save(saved, checkpoint)
+            state_path = Path(source) / 'cycle.json'
+            state = json.loads(state_path.read_text())
+            state['config']['referenceFingerprint'] = 'old-engine'
+            state.update(phase='ready', best={'id': 'old-best'}, candidate={'id': 'old-approved'}, history=[{'id': 'old'}])
+            learn.atomic_json(state_path, state)
+            before = {p.name: learn.file_digest(p) for p in Path(source).iterdir() if p.is_file()}
+            with self.assertRaisesRegex(ValueError, '--from-run'):
+                Cycle(args(source))
+            inherited = Cycle(args(destination, from_run=source))
+            try:
+                self.assertEqual(inherited.state['phase'], 'train')
+                self.assertEqual(inherited.state['nextMatches'], 201)
+                self.assertEqual(inherited.state['history'], [])
+                self.assertIsNone(inherited.state['best'])
+                self.assertIsNone(inherited.state['candidate'])
+                self.assertNotEqual(inherited.state['runId'], state['runId'])
+                self.assertEqual(inherited.state['origin']['checkpointSha256'], before['checkpoint.pt'])
+                self.assertNotEqual(inherited.config['referenceFingerprint'], 'old-engine')
+            finally:
+                inherited.close()
+            resumed = learn.Session(destination, workers=1, threads=2, seed=7)
+            try:
+                for name, value in saved['network'].items():
+                    torch.testing.assert_close(resumed.network.state_dict()[name], value, rtol=0, atol=0)
+                self.assertTrue(resumed.optimizer.state_dict()['state'])
+                self.assertEqual(resumed.metrics['matches'], 200)
+                self.assertEqual(resumed.next_seed, saved['next_seed'])
+                self.assertEqual(len(resumed.dataset), 0)
+                self.assertEqual(len(resumed.replay), 0)
+                self.assertEqual(resumed.environments, {})
+                self.assertEqual(resumed.pool, [])
+                self.assertEqual(resumed.league, {})
+            finally:
+                resumed.close()
+            self.assertEqual(before, {p.name: learn.file_digest(p) for p in Path(source).iterdir() if p.is_file()})
+            with self.assertRaisesRegex(ValueError, 'new --run'):
+                Cycle(args(destination, from_run=source))
+            # A normal continuation no longer needs the source option.
+            resumed_cycle = Cycle(args(destination))
+            resumed_cycle.close()
+
+    def test_incompatible_source_does_not_create_a_checkpoint(self):
+        with tempfile.TemporaryDirectory() as root:
+            source, destination = str(Path(root) / 'old'), str(Path(root) / 'new')
+            controller = Cycle(args(source))
+            controller.close()
+            session = learn.Session(source, workers=1)
+            with self.assertRaises(BlockingIOError):
+                Cycle(args(destination, from_run=source))
+            self.assertFalse((Path(destination) / 'checkpoint.pt').exists())
+            session.save()
+            session.close()
+            checkpoint = Path(source) / 'checkpoint.pt'
+            saved = torch.load(checkpoint, weights_only=False)
+            saved['config']['encodingVersion'] = -1
+            torch.save(saved, checkpoint)
+            with self.assertRaisesRegex(ValueError, 'encoding'):
+                Cycle(args(destination, from_run=source))
+            self.assertFalse((Path(destination) / 'checkpoint.pt').exists())
+
     def test_game_processes_do_not_receive_the_terminal_interrupt_before_checkpointing(self):
         with learn.Bridge() as bridge:
             self.assertNotEqual(os.getpgid(bridge.process.pid), os.getpgrp())

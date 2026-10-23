@@ -543,6 +543,7 @@ def main():
         p.add_argument("--registry")
         p.add_argument("--json", action="store_true", help="Emit machine-readable events and the full report")
         if name == "cycle":
+            p.add_argument("--from-run", help="Start a new cycle from trained weights; reset old game data and evaluations")
             limit = p.add_mutually_exclusive_group(required=True)
             limit.add_argument("--minutes", type=float)
             limit.add_argument("--games", type=int, help="Additional completed matches across all phases")

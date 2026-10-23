@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
+import copy
 import fcntl
 import json
 from pathlib import Path
@@ -65,7 +67,7 @@ def status(directory, registry=None):
             "latestModel": learn.file_digest(latest) if latest.exists() else None,
             "candidate": candidate, "bestValidation": state.get("best"), "active": active,
             "reports": reports, "readyForActivation": bool(state.get("phase") == "ready" and compatible_active),
-            "thresholds": state.get("config"), "nextTrainingMatch": state.get("nextMatches"),
+            "origin": state.get("origin"), "thresholds": state.get("config"), "nextTrainingMatch": state.get("nextMatches"),
             "history": history, "lastOutcome": {**last, "reports": reports_for(last)} if last else None}
     result["nextStep"] = next_step(result)
     return result
@@ -82,7 +84,13 @@ class Cycle:
         previous = read_json(self.path)
         self.bridge = learn.Bridge()
         try:
-            saved = previous["config"] if previous else {}
+            source = getattr(args, "from_run", None)
+            if source and previous:
+                raise ValueError("--from-run requires a new --run directory; resume this run without --from-run")
+            source_state = read_json(Path(source) / "cycle.json") if source else None
+            if source and not source_state:
+                raise ValueError("--from-run must point to an existing cycle with a checkpoint")
+            saved = previous["config"] if previous else source_state["config"] if source_state else {}
             config = {key: getattr(args, key, None) if getattr(args, key, None) is not None else saved.get(key, default)
                       for key, default in DEFAULTS.items()}
             registry = getattr(args, "registry", None) or saved.get("registry") or learn.os.environ.get("BELOT_MODEL_REGISTRY", str(learn.ROOT / "data/models"))
@@ -92,14 +100,53 @@ class Cycle:
             if not 1 <= config["workers"] <= 8 or not 1 <= config["threads"] <= 8 or not 0 <= config["seed"] < 2**31:
                 raise ValueError("Invalid worker/thread/seed configuration")
             if previous and saved != config:
-                raise ValueError("Cycle configuration or reference bot changed; start a new run")
+                if saved.get("referenceFingerprint") != config["referenceFingerprint"]:
+                    raise ValueError("Reference bot or game rules changed. Preserve the trained model in a new run: "
+                                     "cycle --run <new-directory> --from-run " + str(self.directory) + " --games 20")
+                raise ValueError("Cycle configuration changed; resume with the saved parameters or start a new run")
             self.state = previous or {"version": 1, "runId": uuid.uuid4().hex, "config": config, "phase": "collect",
                                       "nextMatches": config["matches_per_candidate"], "candidate": None, "best": None, "history": []}
             self.config = config
+            if source:
+                self.inherit_training(Path(source).resolve())
             self.save()
         except Exception:
             self.close()
             raise
+
+    def inherit_training(self, source):
+        if source == self.directory or (self.directory / "checkpoint.pt").exists() or (self.directory / "candidate.json").exists():
+            raise ValueError("--from-run requires a new destination without a checkpoint or model")
+        # Read a consistent checkpoint; never copy unfinished games or evaluation evidence.
+        with ExitStack() as locks:
+            for name in ["cycle.lock", "session.lock"]:
+                lock = locks.enter_context((source / name).open("a+"))
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            source_digest = learn.file_digest(source / "checkpoint.pt")
+            checkpoint = torch.load(source / "checkpoint.pt", map_location="cpu", weights_only=False)
+        if checkpoint["config"]["encodingVersion"] != learn.ENCODING_VERSION:
+            raise ValueError("Source model encoding is incompatible with the current engine")
+        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"])
+        try:
+            session.network.load_state_dict(checkpoint["network"])
+            session.optimizer.load_state_dict(checkpoint["optimizer"])
+            session.metrics = copy.deepcopy(checkpoint["metrics"])
+            session.rng.setstate(checkpoint["random"])
+            torch.set_rng_state(checkpoint["torchRandom"])
+            if checkpoint["config"]["seed"] == self.config["seed"]:
+                session.next_seed = copy.deepcopy(checkpoint["next_seed"])
+            self.state["origin"] = {"run": str(source), "checkpointSha256": source_digest,
+                                    "config": checkpoint["config"], "metrics": copy.deepcopy(checkpoint["metrics"])}
+            # Network and optimizer survive; dataset, replay, environments and league start fresh.
+            if session.metrics.get("pretrainUpdates", 0) >= self.config["pretrain_steps"]:
+                self.state["phase"] = "train"
+            else:
+                self.state["phase"] = "collect"
+                session.metrics["collectSteps"] = 0
+            self.state["nextMatches"] = session.metrics["matches"] + self.config["matches_per_candidate"]
+            session.save()
+        finally:
+            session.close()
 
     def close(self):
         self.bridge.close()
