@@ -117,23 +117,48 @@ export interface Layer { weight: number[][]; bias: number[] }
 export interface LearnedModel {
   formatVersion: number; encodingVersion: number; observationSize: number; actionSize: number;
   hiddenSizes: number[]; layers: Layer[];
+  actionEncoder?: Layer[]; biddingHead?: Layer[]; playingHead?: Layer[];
   metadata?: Record<string, unknown>;
 }
 export function validateModel(value: unknown): LearnedModel {
   const m = value as LearnedModel;
-  if (!m || m.formatVersion !== MODEL_VERSION || m.encodingVersion !== ENCODING_VERSION ||
+  if (!m || ![MODEL_VERSION, 2].includes(m.formatVersion) || m.encodingVersion !== ENCODING_VERSION ||
     m.observationSize !== OBSERVATION_SIZE || m.actionSize !== ACTION_SIZE ||
-    JSON.stringify(m.hiddenSizes) !== '[128,128]' || !Array.isArray(m.layers) || m.layers.length !== 3) throw new Error('Incompatible learned model');
-  const sizes = [INPUT_SIZE, 128, 128, 1];
-  m.layers.forEach((l, i) => {
-    if (!l || !Array.isArray(l.weight) || l.weight.length !== sizes[i + 1] || !Array.isArray(l.bias) || l.bias.length !== sizes[i + 1] ||
-      l.bias.some(x => typeof x !== 'number' || !Number.isFinite(x)) || l.weight.some(row => !Array.isArray(row) || row.length !== sizes[i] ||
-        row.some(x => typeof x !== 'number' || !Number.isFinite(x)))) throw new Error('Invalid model weights');
-  });
+    JSON.stringify(m.hiddenSizes) !== '[128,128]') throw new Error('Incompatible learned model');
+  function validateLayers(layers: Layer[] | undefined, sizes: number[]) {
+    if (!Array.isArray(layers) || layers.length !== sizes.length - 1) throw new Error('Invalid model layers');
+    layers.forEach((l, i) => {
+      if (!l || !Array.isArray(l.weight) || l.weight.length !== sizes[i + 1] || !Array.isArray(l.bias) || l.bias.length !== sizes[i + 1] ||
+        l.bias.some(x => typeof x !== 'number' || !Number.isFinite(x)) || l.weight.some(row => !Array.isArray(row) || row.length !== sizes[i] ||
+          row.some(x => typeof x !== 'number' || !Number.isFinite(x)))) throw new Error('Invalid model weights');
+    });
+  }
+  if (m.formatVersion === 1) validateLayers(m.layers, [INPUT_SIZE, 128, 128, 1]);
+  else {
+    validateLayers(m.layers, [OBSERVATION_SIZE, 128, 128]);
+    validateLayers(m.actionEncoder, [ACTION_SIZE, 64]);
+    validateLayers(m.biddingHead, [192, 64, 1]);
+    validateLayers(m.playingHead, [192, 64, 1]);
+  }
   return m;
 }
 export function scoreActions(model: LearnedModel, observation: number[], actions: number[][]): number[] {
   if (observation.length !== OBSERVATION_SIZE || actions.some(a => a.length !== ACTION_SIZE)) throw new Error('Invalid feature dimensions');
+  if (model.formatVersion === 2) {
+    const run = (layers: Layer[], input: number[], linearLast = false): number[] => layers.reduce((x, l, index) =>
+      l.weight.map((row, j) => {
+        const sum = row.reduce((n, w, i) => n + w * x[i], l.bias[j]);
+        return linearLast && index === layers.length - 1 ? sum : Math.max(0, sum);
+      }), input);
+    const state = run(model.layers, observation);
+    // public_state: 32 card bits, four hand counts, then bidding/playing bits.
+    const head = observation[36] === 1 ? model.biddingHead! : model.playingHead!;
+    return actions.map(action => {
+      const score = run(head, [...state, ...run(model.actionEncoder!, action)], true)[0];
+      if (!Number.isFinite(score)) throw new Error('Non-finite model output');
+      return score;
+    });
+  }
   const first = model.layers[0];
   // Share the observation multiplication across all candidate actions.
   const base = first.weight.map((row, j) => observation.reduce((n, x, i) => n + x * row[i], first.bias[j]));

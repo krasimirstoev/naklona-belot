@@ -13,7 +13,7 @@ from budget import GameBudget
 
 
 def args(directory, **overrides):
-    values = dict(run=directory, registry=str(Path(directory) / 'registry'), teacher_examples=2,
+    values = dict(algorithm='dmc-v1', run=directory, registry=str(Path(directory) / 'registry'), teacher_examples=2,
                   pretrain_steps=2, matches_per_candidate=1, validation_seeds=2, workers=1, threads=2, seed=7)
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -58,7 +58,7 @@ class CycleTests(unittest.TestCase):
             source, destination = str(Path(root) / 'old'), str(Path(root) / 'new')
             controller = Cycle(args(source))
             controller.close()
-            session = learn.Session(source, workers=1, threads=2, seed=7)
+            session = learn.Session(source, algorithm="dmc-v1", workers=1, threads=2, seed=7)
             try:
                 loss = session.network(torch.ones((1, learn.OBSERVATION_SIZE + learn.ACTION_SIZE))).sum()
                 loss.backward()
@@ -96,7 +96,7 @@ class CycleTests(unittest.TestCase):
                 self.assertNotEqual(inherited.config['referenceFingerprint'], 'old-engine')
             finally:
                 inherited.close()
-            resumed = learn.Session(destination, workers=1, threads=2, seed=7)
+            resumed = learn.Session(destination, algorithm="dmc-v1", workers=1, threads=2, seed=7)
             try:
                 for name, value in saved['network'].items():
                     torch.testing.assert_close(resumed.network.state_dict()[name], value, rtol=0, atol=0)
@@ -122,7 +122,7 @@ class CycleTests(unittest.TestCase):
             source, destination = str(Path(root) / 'old'), str(Path(root) / 'new')
             controller = Cycle(args(source))
             controller.close()
-            session = learn.Session(source, workers=1)
+            session = learn.Session(source, algorithm="dmc-v1", workers=1)
             with self.assertRaises(BlockingIOError):
                 Cycle(args(destination, from_run=source))
             self.assertFalse((Path(destination) / 'checkpoint.pt').exists())

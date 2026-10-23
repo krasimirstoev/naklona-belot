@@ -17,7 +17,7 @@ for argument in "$@"; do
   case "$argument" in --run|--run=*) has_run=true ;; esac
 done
 if [[ "$has_run" == false ]]; then
-  set -- --run data/quality/strategy-v2-1 "$@"
+  set -- --run data/quality/ppo-v2-1 "$@"
 fi
 # exec preserves terminal signals: Ctrl+C checkpoints the Python session.
 # Activation is deliberately a separate command after successful qualification.

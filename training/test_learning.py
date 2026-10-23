@@ -39,7 +39,7 @@ class LearningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             preference_loss(logits, [])
         with tempfile.TemporaryDirectory() as directory:
-            session = Session(directory, workers=1)
+            session = Session(directory, algorithm="dmc-v1", workers=1)
             try:
                 with Bridge() as bridge:
                     obs = bridge.call("reset", namespace="test-v1", seed=7)
@@ -52,7 +52,7 @@ class LearningTests(unittest.TestCase):
                 self.assertEqual(session.metrics["pretrainScenarioExamples"], 4)
             finally:
                 session.close()
-            resumed = Session(directory, workers=1)
+            resumed = Session(directory, algorithm="dmc-v1", workers=1)
             try:
                 resumed.pretrain(.1, stop_at=2)
                 self.assertEqual(resumed.config["encodingVersion"], ENCODING_VERSION)
@@ -115,7 +115,7 @@ class LearningTests(unittest.TestCase):
 
     def test_checkpoint_restores_network_optimizer_rng_and_partial_episode(self):
         with tempfile.TemporaryDirectory() as directory:
-            session = Session(directory, workers=1, threads=2, seed=3)
+            session = Session(directory, algorithm="dmc-v1", workers=1, threads=2, seed=3)
             try:
                 session.start("train")
                 worker = session.active[0]
@@ -135,7 +135,7 @@ class LearningTests(unittest.TestCase):
                 optimizer = session.optimizer.state_dict()
             finally:
                 session.close()
-            resumed = Session(directory, workers=1, threads=2, seed=3)
+            resumed = Session(directory, algorithm="dmc-v1", workers=1, threads=2, seed=3)
             try:
                 self.assertEqual(resumed.rng.random(), random_value)
                 torch.testing.assert_close(torch.rand(1), torch_value)
@@ -154,7 +154,7 @@ class LearningTests(unittest.TestCase):
 
     def test_supervised_and_monte_carlo_updates_change_weights(self):
         with tempfile.TemporaryDirectory() as directory, Bridge() as bridge:
-            session = Session(directory, workers=1)
+            session = Session(directory, algorithm="dmc-v1", workers=1)
             try:
                 obs = bridge.call("reset", namespace="test-v1", seed=7)
                 x = inputs(obs["observation"], obs["actionFeatures"])

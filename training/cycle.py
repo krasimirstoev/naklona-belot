@@ -15,7 +15,7 @@ import learn
 from reporting import event_output, next_step, print_status
 from budget import GameBudget, deadline_for
 
-DEFAULTS = {"teacher_examples": 10000, "pretrain_steps": 1000, "matches_per_candidate": 100,
+DEFAULTS = {"teacher_examples": 20000, "pretrain_steps": 1000, "matches_per_candidate": 100,
             "validation_seeds": 20, "workers": 2, "threads": 2, "seed": 7}
 
 
@@ -68,6 +68,7 @@ def status(directory, registry=None):
             "candidate": candidate, "bestValidation": state.get("best"), "active": active,
             "reports": reports, "readyForActivation": bool(state.get("phase") == "ready" and compatible_active),
             "origin": state.get("origin"), "thresholds": state.get("config"), "nextTrainingMatch": state.get("nextMatches"),
+            "algorithm": state.get("config", {}).get("algorithm", "dmc-v1"), "baseline": state.get("baseline"),
             "history": history, "lastOutcome": {**last, "reports": reports_for(last)} if last else None}
     result["nextStep"] = next_step(result)
     return result
@@ -91,8 +92,22 @@ class Cycle:
             if source and not source_state:
                 raise ValueError("--from-run must point to an existing cycle with a checkpoint")
             saved = previous["config"] if previous else source_state["config"] if source_state else {}
+            algorithm = getattr(args, "algorithm", None) or (saved.get("algorithm", "dmc-v1") if saved else "ppo-v2")
+            if previous and algorithm != saved.get("algorithm", "dmc-v1"):
+                raise ValueError("Training algorithm changed; start a new run directory")
             config = {key: getattr(args, key, None) if getattr(args, key, None) is not None else saved.get(key, default)
                       for key, default in DEFAULTS.items()}
+            if algorithm == "ppo-v2":
+                config.update(algorithm=algorithm, holdout_examples=getattr(args, "holdout_examples", None) if getattr(args, "holdout_examples", None) is not None else saved.get("holdout_examples", 5000))
+                if not isinstance(config["holdout_examples"], int) or not 1 <= config["holdout_examples"] <= 5000:
+                    raise ValueError("holdout-examples must be 1..5000")
+            elif algorithm == "dmc-v1":
+                if not previous or "algorithm" in saved:
+                    config["algorithm"] = algorithm
+                if not saved and getattr(args, "teacher_examples", None) is None:
+                    config["teacher_examples"] = 10000
+            else:
+                raise ValueError("Unknown training algorithm")
             registry = getattr(args, "registry", None) or saved.get("registry") or learn.os.environ.get("BELOT_MODEL_REGISTRY", str(learn.ROOT / "data/models"))
             config.update(registry=str(Path(registry).resolve()), referenceFingerprint=self.bridge.info["referenceFingerprint"], version=1)
             if any(not isinstance(config[key], int) or config[key] < 1 for key in DEFAULTS if key != "seed") or not 1 <= config["teacher_examples"] <= 20000:
@@ -126,19 +141,23 @@ class Cycle:
             checkpoint = torch.load(source / "checkpoint.pt", map_location="cpu", weights_only=False)
         if checkpoint["config"]["encodingVersion"] != learn.ENCODING_VERSION:
             raise ValueError("Source model encoding is incompatible with the current engine")
-        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"])
+        algorithm = self.config.get("algorithm", "dmc-v1")
+        if checkpoint["config"].get("algorithm", "dmc-v1") != algorithm:
+            raise ValueError("Source model algorithm is incompatible; start PPO in a new directory without --from-run")
+        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"], algorithm)
         try:
             session.network.load_state_dict(checkpoint["network"])
-            session.optimizer.load_state_dict(checkpoint["optimizer"])
-            session.metrics = copy.deepcopy(checkpoint["metrics"])
+            if algorithm == "dmc-v1":
+                session.optimizer.load_state_dict(checkpoint["optimizer"])
+                session.metrics = copy.deepcopy(checkpoint["metrics"])
             session.rng.setstate(checkpoint["random"])
             torch.set_rng_state(checkpoint["torchRandom"])
             if checkpoint["config"]["seed"] == self.config["seed"]:
                 session.next_seed = copy.deepcopy(checkpoint["next_seed"])
             self.state["origin"] = {"run": str(source), "checkpointSha256": source_digest,
                                     "config": checkpoint["config"], "metrics": copy.deepcopy(checkpoint["metrics"])}
-            # Network and optimizer survive; dataset, replay, environments and league start fresh.
-            if session.metrics.get("pretrainUpdates", 0) >= self.config["pretrain_steps"]:
+            # DMC preserves optimizer/work counters; PPO prepares again under current rules.
+            if algorithm == "dmc-v1" and session.metrics.get("pretrainUpdates", 0) >= self.config["pretrain_steps"]:
                 self.state["phase"] = "train"
             else:
                 self.state["phase"] = "collect"
@@ -159,18 +178,26 @@ class Cycle:
         return self.bridge.call("registryStatus", directory=self.config["registry"])
 
     def session_phase(self, phase, minutes, target):
-        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"])
+        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"], self.config.get("algorithm", "dmc-v1"))
         session.progress_json = self.json_output
         try:
             if phase == "pretrain":
                 session.pretrain(minutes, stop_at=target)
             else:
-                session.collect_or_train(phase, minutes, stop_at=target, game_budget=getattr(self, "game_budget", None))
+                session.collect_or_train(phase, minutes, stop_at=target, game_budget=getattr(self, "game_budget", None),
+                                         holdout_target=self.config.get("holdout_examples") if phase == "collect" else None)
             return dict(session.metrics)
         finally:
             session.close()
 
-    def freeze(self):
+    def freeze(self, baseline=False):
+        if self.config.get("algorithm") == "ppo-v2":
+            session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"])
+            try:
+                session.snapshot_network(baseline=baseline)
+                session.save()
+            finally:
+                session.close()
         source = self.directory / "candidate.json"
         digest = learn.file_digest(source)
         path = self.directory / "candidates" / digest / "model.json"
@@ -179,6 +206,8 @@ class Cycle:
             raise ValueError("Candidate changed during export")
         self.state["candidate"] = {"id": digest, "path": str(path), "championId": self.active()["current"],
                                    "validation": str(path.parent / "validation.json")}
+        if baseline:
+            self.state["baseline"] = {"id": digest, "path": str(path), "validation": self.state["candidate"]["validation"]}
         self.state["phase"] = "validation"
         self.save()
 
@@ -236,14 +265,23 @@ class Cycle:
             key = {"collect": "collectSteps", "pretrain": "pretrainUpdates", "train": "matches"}[phase]
             target = {"collect": self.config["teacher_examples"], "pretrain": self.config["pretrain_steps"], "train": self.state["nextMatches"]}[phase]
             values = metrics(self.directory)
-            if values.get(key, 0) < target:
+            ppo = self.config.get("algorithm") == "ppo-v2"
+            def complete(values):
+                if ppo and phase == "collect":
+                    return values.get("teacherExamples", 0) >= target and values.get("holdoutExamples", 0) >= self.config["holdout_examples"]
+                if ppo and phase == "train":
+                    return values.get("lastUpdatedMatch", 0) >= target and values.get("pendingRolloutExamples", 0) == 0 and values.get("inFlightExamples", 0) == 0
+                return values.get(key, 0) >= target
+            if not complete(values):
                 budget = getattr(self, "game_budget", None)
                 if budget and budget.exhausted:
                     return
                 values = self.session_phase(phase, minutes, target)
-            if values.get(key, 0) >= target:
+            if complete(values):
                 if phase == "train":
                     self.freeze()
+                elif phase == "pretrain" and ppo:
+                    self.freeze(baseline=True)
                 else:
                     self.state["phase"] = "pretrain" if phase == "collect" else "train"
                     self.save()

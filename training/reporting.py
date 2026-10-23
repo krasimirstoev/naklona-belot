@@ -44,7 +44,7 @@ def event_output(event, json_output=False):
                 f'{event["completedSeeds"]}/{event["seedsRequested"]} семена; '
                 f'победи {wins:g}/{games} ({rate}); модел {event["model"]}.')
     elif kind == "training-progress":
-        line = (f'Обучение ({phase}): {event.get("collectSteps", 0)} учителски примера; '
+        line = (f'Обучение ({phase}): {event.get("teacherExamples", event.get("collectSteps", 0))} налични учителски примера; '
                 f'{event.get("pretrainUpdates", 0)} начални стъпки; '
                 f'{event.get("matches", 0)} завършени тренировъчни мача; '
                 f'{event.get("rlUpdates", 0)} стъпки от самоигра.')
@@ -67,7 +67,13 @@ def next_step(state):
         description = "Продължи проверката на същия кандидат. През тази фаза теглата не се обучават."
     elif phase == "train":
         target = state.get("nextTrainingMatch")
-        description = f"Продължи самоиграта до общо {target} завършени тренировъчни мача; после цикълът оценява нов кандидат."
+        metrics = state.get("metrics", {})
+        if state.get("algorithm") == "ppo-v2" and target is not None and metrics.get("matches", 0) >= target:
+            description = (f"Прагът от {target} тренировъчни мача е достигнат. Продължи самоиграта до завършено PPO обновяване; "
+                           f"готови примери: {metrics.get('pendingRolloutExamples', 0)}, "
+                           f"в незавършени мачове: {metrics.get('inFlightExamples', 0)}. После цикълът оценява нов кандидат.")
+        else:
+            description = f"Продължи самоиграта до общо {target} завършени тренировъчни мача; после цикълът оценява нов кандидат."
     elif phase == "ready":
         description = "Продължи цикъла, за да провери съвместимостта с активната версия."
     else:
@@ -81,10 +87,33 @@ def print_status(state, json_output=False):
         return
     print(f'\nЕксперимент: {state["run"]}')
     print(f'Фаза: {PHASES.get(state["phase"], state["phase"])}.')
+    print(f'Алгоритъм: {state.get("algorithm", "dmc-v1")}.')
     metrics, thresholds = state["metrics"], state.get("thresholds") or {}
-    print(f'Обучение: {metrics.get("collectSteps", 0)}/{thresholds.get("teacher_examples", "?")} учителски примера; '
+    print(f'Обучение: {metrics.get("teacherExamples", metrics.get("collectSteps", 0))}/{thresholds.get("teacher_examples", "?")} налични учителски примера; '
           f'{metrics.get("pretrainUpdates", 0)}/{thresholds.get("pretrain_steps", "?")} начални стъпки; '
           f'{metrics.get("matches", 0)} тренировъчни мача.')
+    if "teacherExamples" in metrics:
+        print(f'Налични примери: {metrics["teacherExamples"]} тренировъчни; {metrics.get("holdoutExamples", 0)} диагностични. '
+              f'Исторически събрани: {metrics.get("collectSteps", 0)}.')
+    baseline = state.get("baseline")
+    if baseline:
+        print(f'Начален модел след учителя: {baseline["id"][:12]}.')
+    if "rolloutUpdates" in metrics:
+        print(f'PPO: {metrics["rolloutUpdates"]} обновявания; KL {metrics.get("ppoKL", 0):.4f}; '
+              f'clipping {metrics.get("ppoClipFraction", 0):.1%}; '
+              f'{metrics.get("pendingRolloutExamples", 0)} готови и {metrics.get("inFlightExamples", 0)} незавършени примера.')
+    if "trainingSeconds" in metrics:
+        wins, games = metrics.get("trainingWins", 0), metrics.get("matches", 0)
+        result = f'{wins}/{games} победи; ' if "trainingWins" in metrics else ''
+        print(f'Самоигра: {result}{metrics["trainingSeconds"]:.1f} s; '
+              f'{metrics.get("decisionsPerSecond", 0):.1f} хода/s.')
+    for split, phases in metrics.get("diagnostics", {}).items():
+        for phase, values in phases.items():
+            if values["sampled"]:
+                print(f'Диагностика {split}/{phase}: loss {values["loss"]:.4f}; '
+                      f'съвпадение {values["agreement"]:.1%} върху {values["sampled"]} примера.')
+                if values.get("bids"):
+                    print('  Обяви на модела: ' + json.dumps(values["bids"], ensure_ascii=False) + '.')
     candidate = state.get("candidate")
     if candidate:
         print(f'Кандидат: {candidate["id"][:12]}')

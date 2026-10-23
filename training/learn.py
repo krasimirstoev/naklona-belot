@@ -15,12 +15,16 @@ import random
 import re
 import signal
 import subprocess
+import sys
 import time
 
 import torch
 from torch import nn
 from reporting import event_output, print_status
 from budget import GameBudget, deadline_for, validation_rejection
+
+# CLI and imported helpers must share signal state and checkpoint classes.
+sys.modules.setdefault("learn", sys.modules[__name__])
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = json.loads((Path(__file__).resolve().parents[1] / "src/game/learning-manifest.json").read_text())
@@ -92,10 +96,17 @@ def inputs(observation, actions):
 
 def choose(network, observation, actions):
     with torch.no_grad():
+        if hasattr(network, "logits"):
+            return int(network.logits(observation, actions).argmax())
         return int(network(inputs(observation, actions)).argmax())
 
 
 def export_model(network, metadata=None):
+    if hasattr(network, "logits"):
+        from ppo import export_actor
+        return {"formatVersion": 2, "encodingVersion": ENCODING_VERSION,
+                "observationSize": OBSERVATION_SIZE, "actionSize": ACTION_SIZE,
+                "hiddenSizes": [128, 128], **export_actor(network), "metadata": metadata or {}}
     return {"formatVersion": 1, "encodingVersion": ENCODING_VERSION,
             "observationSize": OBSERVATION_SIZE, "actionSize": ACTION_SIZE, "hiddenSizes": [128, 128],
             "layers": [{"weight": layer.weight.detach().tolist(), "bias": layer.bias.detach().tolist()}
@@ -137,8 +148,22 @@ def match_targets(samples, terminal):
     return [(x, float(terminal["rewards"][team])) for x, team in samples]
 
 
+def record_contracts(buckets, results, team):
+    """Keep declarer outcomes separate from the model team's point difference."""
+    for result in results:
+        bucket = buckets.setdefault(result["contract"], {"rounds": 0, "scoreDifference": 0,
+                                                        "made": 0, "failed": 0, "hanging": 0,
+                                                        "own": {"made": 0, "failed": 0, "hanging": 0},
+                                                        "opponent": {"made": 0, "failed": 0, "hanging": 0}})
+        bucket["rounds"] += 1
+        bucket["scoreDifference"] += result["added"][team] - result["added"][1 - team]
+        bucket[result["outcome"]] += 1
+        side = "own" if result["declarer"] % 2 == team else "opponent"
+        bucket.setdefault(side, {"made": 0, "failed": 0, "hanging": 0})[result["outcome"]] += 1
+
+
 class Session:
-    def __init__(self, directory, workers=2, threads=2, seed=7):
+    def __init__(self, directory, workers=2, threads=2, seed=7, algorithm=None):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.lock = (self.directory / "session.lock").open("a+")
@@ -148,28 +173,42 @@ class Session:
         self.mode = None
         self.progress_json = True
         self.path = self.directory / "checkpoint.pt"
+        saved = torch.load(self.path, map_location="cpu", weights_only=False) if self.path.exists() else None
+        saved_algorithm = saved["config"].get("algorithm", "dmc-v1") if saved else None
+        self.algorithm = algorithm or saved_algorithm or "ppo-v2"
+        if self.algorithm not in ["dmc-v1", "ppo-v2"] or saved and self.algorithm != saved_algorithm:
+            self.lock.close()
+            raise ValueError("Incompatible training algorithm; start a new run directory")
         torch.set_num_threads(threads)
         torch.manual_seed(seed)
         self.rng = random.Random(seed)
-        self.network = Network()
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=1e-3)
+        from ppo import ActorCritic, SETTINGS
+        self.network = ActorCritic(OBSERVATION_SIZE, ACTION_SIZE) if self.algorithm == "ppo-v2" else Network()
+        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=SETTINGS["learningRate"] if self.algorithm == "ppo-v2" else 1e-3)
         with Bridge() as bridge:
             fingerprint = bridge.info["referenceFingerprint"]
             scenario_digest = bridge.info["scenarioDigest"]
         self.config = {"version": 1, "encodingVersion": ENCODING_VERSION, "workers": workers,
                        "threads": threads, "seed": seed, "referenceFingerprint": fingerprint,
                        "scenarioDigest": scenario_digest, "scenarioRatio": .1, "epsilon": .1, "replayCapacity": 20000, "trainingHardBatches": 4}
+        if self.algorithm == "ppo-v2":
+            self.config.update(algorithm=self.algorithm, ppo=dict(SETTINGS))
+        elif not saved or "algorithm" in saved["config"]:
+            self.config["algorithm"] = self.algorithm
         self.metrics = {"collectSteps": 0, "trainSteps": 0, "matches": 0, "pretrainUpdates": 0, "rlUpdates": 0}
         self.dataset = collections.deque(maxlen=20000)
         self.replay = collections.deque(maxlen=20000)
+        self.holdout = collections.deque(maxlen=5000)
+        self.rollout = []
+        self.ppo_update = None
         self.environments = {}
         self.league = {}
         self.pool = []
         self.next_seed = {"collect": 0, "train": 0}
-        if self.path.exists():
+        if saved:
             # Checkpoints are local trusted training files, never files accepted by the website.
-            saved = torch.load(self.path, map_location="cpu", weights_only=False)
             if saved["config"] != self.config:
+                self.lock.close()
                 raise ValueError("Run configuration or engine changed; use a new run directory")
             self.network.load_state_dict(saved["network"])
             self.optimizer.load_state_dict(saved["optimizer"])
@@ -177,6 +216,9 @@ class Session:
             torch.set_rng_state(saved["torchRandom"])
             for name in ["metrics", "dataset", "replay", "environments", "league", "pool", "next_seed"]:
                 setattr(self, name, saved[name])
+            for name in ["holdout", "rollout", "ppo_update"]:
+                if name in saved:
+                    setattr(self, name, saved[name])
 
     def start(self, mode):
         self.mode = mode
@@ -196,7 +238,14 @@ class Session:
         self.next_seed[mode] += 1
         observation = bridge.call("reset", namespace="train-collect-v1" if mode == "collect" else "train-selfplay-v1", seed=seed)
         if mode == "collect":
-            policies = ["hard" if self.rng.random() < .25 else "medium" for _ in range(4)]
+            policies = ["hard" if self.rng.random() < (.8 if self.algorithm == "ppo-v2" else .25) else "medium" for _ in range(4)]
+        elif self.algorithm == "ppo-v2":
+            roll = self.rng.random()
+            opponent = "hard" if roll < .5 else "medium" if roll < .75 else self.rng.choice(self.pool) if self.pool else "hard"
+            policies = [opponent] * 4
+            seat = self.rng.randrange(4)
+            policies[seat] = "learner"
+            policies[(seat + 2) % 4] = "hard" if self.rng.random() < .75 else "medium"
         else:
             if not self.pool:
                 self.snapshot_network()
@@ -206,16 +255,28 @@ class Session:
             policies[seat] = "learner"
             if self.rng.random() >= .75:
                 policies[(seat + 2) % 4] = "learner"
-        return {"observation": observation, "policies": policies, "samples": []}
+        worker = {"observation": observation, "policies": policies, "samples": []}
+        if self.algorithm == "ppo-v2":
+            from ppo import match_split
+            worker.update(matchSeed=seed, split=match_split(seed))
+        return worker
 
-    def snapshot_network(self):
-        key = f"snapshot-{self.metrics['matches']}-{self.metrics['rlUpdates']}"
+    def snapshot_network(self, baseline=False):
+        key = "snapshot-bc" if baseline else f"snapshot-{self.metrics['matches']}-{self.metrics['rlUpdates']}"
+        if baseline and key in self.league:
+            return
         self.league[key] = copy.deepcopy(self.network.state_dict())
-        self.pool = [*self.pool, key][-4:]
+        if self.algorithm == "ppo-v2":
+            recent = [p for p in self.pool if p != "snapshot-bc" and p != key]
+            if not baseline:
+                recent.append(key)
+            self.pool = (["snapshot-bc"] if "snapshot-bc" in self.league else []) + recent[-3:]
+        else:
+            self.pool = [*self.pool, key][-4:]
 
     def save(self):
         if self.mode:
-            self.environments[self.mode] = [{"snapshot": b.call("snapshot"), "policies": w["policies"], "samples": w["samples"]}
+            self.environments[self.mode] = [{**{k: v for k, v in w.items() if k not in ["observation", "snapshot"]}, "snapshot": b.call("snapshot")}
                                            for b, w in zip(self.bridges, self.active)]
         used = set(self.pool)
         for workers in self.environments.values():
@@ -223,13 +284,18 @@ class Session:
                 used.update(p for p in worker["policies"] if p.startswith("snapshot-"))
         self.league = {k: v for k, v in self.league.items() if k in used}
         saved = {name: getattr(self, name) for name in ["config", "metrics", "dataset", "replay", "environments", "league", "pool", "next_seed"]}
+        if self.algorithm == "ppo-v2":
+            saved.update(holdout=self.holdout, rollout=self.rollout, ppo_update=self.ppo_update)
+        self.metrics.update(teacherExamples=len(self.dataset), holdoutExamples=len(self.holdout))
         saved.update(network=self.network.state_dict(), optimizer=self.optimizer.state_dict(), random=self.rng.getstate(), torchRandom=torch.get_rng_state())
         temp = self.path.with_name("checkpoint.pt.tmp")
         torch.save(saved, temp)
         with temp.open("rb") as stream:
             os.fsync(stream.fileno())
         os.replace(temp, self.path)
-        atomic_json(self.directory / "candidate.json", export_model(self.network, {"config": self.config, "metrics": self.metrics}))
+        # A partially optimized PPO actor is resumable, but not a candidate.
+        if self.ppo_update is None:
+            atomic_json(self.directory / "candidate.json", export_model(self.network, {"config": self.config, "metrics": self.metrics}))
         with (self.directory / "metrics.jsonl").open("a") as stream:
             stream.write(json.dumps({"time": time.time(), **self.metrics, "teacherExamples": len(self.dataset), "replayExamples": len(self.replay)}) + "\n")
 
@@ -238,7 +304,10 @@ class Session:
             b.close()
         self.lock.close()
 
-    def collect_or_train(self, mode, minutes=None, stop_at=None, game_budget=None):
+    def collect_or_train(self, mode, minutes=None, stop_at=None, game_budget=None, holdout_target=None):
+        if self.algorithm == "ppo-v2" and mode == "train":
+            from ppo import train
+            return train(self, minutes, stop_at, game_budget)
         if mode == "train" and self.metrics["pretrainUpdates"] == 0:
             raise ValueError("Collect examples and run pretrain before self-play")
         game_budget = game_budget or GameBudget()
@@ -246,17 +315,21 @@ class Session:
             raise ValueError("A game, time or phase limit is required")
         self.start(mode)
         deadline, last_save = deadline_for(minutes), time.monotonic()
+        started, timing_key = last_save, "collectionSeconds" if mode == "collect" else "trainingSeconds"
+        previous_seconds = self.metrics.get(timing_key, 0.)
         frozen_networks = {}
         executor = ThreadPoolExecutor(max_workers=self.config["workers"])
 
         def teacher_step(bridge, policy):
-            index = bridge.call("recommend", policy=policy)["index"]
-            return index, bridge.call("step", index=index)
+            index = bridge.call("recommend", policy="hard" if self.algorithm == "ppo-v2" else policy)["index"]
+            chosen = index if self.algorithm != "ppo-v2" or policy == "hard" else bridge.call("recommend", policy=policy)["index"]
+            return index, bridge.call("step", index=chosen)
 
         clean_exit = False
         try:
             while not STOP and not game_budget.exhausted and time.monotonic() < deadline and (stop_at is None or
-                    self.metrics["collectSteps" if mode == "collect" else "matches"] < stop_at):
+                    (len(self.dataset) if self.algorithm == "ppo-v2" and mode == "collect" else self.metrics["collectSteps" if mode == "collect" else "matches"]) < stop_at or
+                    holdout_target is not None and len(self.holdout) < holdout_target):
                 pending = []
                 # Reserve at most one possible completion per active actor. This prevents
                 # two concurrent terminal actions from overshooting a one-game remainder.
@@ -290,8 +363,13 @@ class Session:
                     if mode == "collect":
                         index, result = result
                         obs = worker["observation"]
-                        self.dataset.append((torch.tensor(obs["observation"], dtype=torch.float32),
-                                             torch.tensor(obs["actionFeatures"], dtype=torch.float32), index))
+                        example = (torch.tensor(obs["observation"], dtype=torch.float32),
+                                   torch.tensor(obs["actionFeatures"], dtype=torch.float32), index)
+                        if self.algorithm == "ppo-v2":
+                            target = self.holdout if worker["split"] == "holdout" else self.dataset
+                            target.append((*example, worker["matchSeed"]))
+                        else:
+                            self.dataset.append(example)
                         self.metrics["collectSteps"] += 1
                     else:
                         self.metrics["trainSteps"] += 1
@@ -313,6 +391,7 @@ class Session:
                         loss = nn.functional.mse_loss(prediction, torch.tensor([y for _, y in batch]))
                         self.update(loss, "rlUpdates")
                 if time.monotonic() - last_save >= 30:
+                    self.metrics[timing_key] = previous_seconds + time.monotonic() - started
                     self.save()
                     frozen_networks = {k: v for k, v in frozen_networks.items() if k in self.league}
                     event_output({"event": "training-progress", "phase": mode, **self.metrics}, self.progress_json)
@@ -321,6 +400,9 @@ class Session:
         finally:
             executor.shutdown(wait=True)
             if clean_exit:
+                self.metrics[timing_key] = previous_seconds + time.monotonic() - started
+                if mode == "train":
+                    self.metrics["decisionsPerSecond"] = self.metrics["trainSteps"] / max(.001, self.metrics[timing_key])
                 self.save()
 
     def update(self, loss, metric):
@@ -328,10 +410,18 @@ class Session:
             raise ValueError("Non-finite training loss")
         self.optimizer.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(self.network.parameters(), 5, error_if_nonfinite=True)
+        nn.utils.clip_grad_norm_(self.network.parameters(), .5 if self.algorithm == "ppo-v2" else 5, error_if_nonfinite=True)
         self.optimizer.step()
         self.metrics[metric] += 1
         self.metrics["lastLoss"] = float(loss.detach())
+
+    def training_scenarios(self):
+        with Bridge() as bridge:
+            catalog = bridge.call("trainingScenarios")
+        if catalog["catalogDigest"] != self.config["scenarioDigest"]:
+            raise ValueError("Scenario catalog changed; start a new experiment")
+        return [(torch.tensor(s["observation"], dtype=torch.float32),
+                 torch.tensor(s["actionFeatures"], dtype=torch.float32), s["preferred"]) for s in catalog["examples"]]
 
     def pretrain(self, minutes=None, stop_at=None):
         if not self.dataset:
@@ -339,20 +429,21 @@ class Session:
         if minutes is None and stop_at is None:
             raise ValueError("A step or time limit is required for pretraining")
         deadline, last_save = deadline_for(minutes), time.monotonic()
+        started, previous_seconds = last_save, self.metrics.get("pretrainingSeconds", 0.)
         data = list(self.dataset)
-        with Bridge() as bridge:
-            catalog = bridge.call("trainingScenarios")
-        if catalog["catalogDigest"] != self.config["scenarioDigest"]:
-            raise ValueError("Scenario catalog changed; start a new experiment")
-        scenarios = [(torch.tensor(s["observation"], dtype=torch.float32),
-                      torch.tensor(s["actionFeatures"], dtype=torch.float32), s["preferred"]) for s in catalog["examples"]]
+        scenarios = self.training_scenarios()
+        from ppo import teacher_batch, teacher_groups, diagnostics
+        groups = teacher_groups(data) if self.algorithm == "ppo-v2" else None
         if not scenarios:
             raise ValueError("Missing training scenarios")
         try:
             while not STOP and time.monotonic() < deadline and (stop_at is None or self.metrics["pretrainUpdates"] < stop_at):
                 # Exactly 90% natural teacher examples / 10% training scenarios per update.
-                batch = [(obs, actions, [index]) for obs, actions, index in self.rng.choices(data, k=36)]
-                batch += self.rng.choices(scenarios, k=4)
+                if self.algorithm == "ppo-v2":
+                    batch = teacher_batch(self, groups, scenarios)
+                else:
+                    batch = [(obs, actions, [index]) for obs, actions, index in self.rng.choices(data, k=36)]
+                    batch += self.rng.choices(scenarios, k=4)
                 logits = self.network(torch.cat([inputs(obs, actions) for obs, actions, _ in batch]))
                 offset, losses = 0, []
                 for _, actions, preferred in batch:
@@ -366,6 +457,9 @@ class Session:
                     event_output({"event": "training-progress", "phase": "pretrain", **self.metrics}, self.progress_json)
                     last_save = time.monotonic()
         finally:
+            self.metrics["pretrainingSeconds"] = previous_seconds + time.monotonic() - started
+            if self.algorithm == "ppo-v2":
+                diagnostics(self)
             self.save()
 
 
@@ -419,9 +513,14 @@ def evaluate(args):
     quiet = getattr(args, "quiet", False)
     with path.with_name(path.name + ".lock").open("a+") as lock, Bridge() as bridge:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        full_validation = getattr(args, "full_validation", False)
+        if full_validation and args.split != "validation":
+            raise ValueError("Full diagnostic validation requires the validation split")
         config = {"version": 1, "modelSha256": digest, "referenceFingerprint": bridge.info["referenceFingerprint"],
                   "split": args.split, "partner": args.partner, "seedsRequested": args.seeds,
                   "namespace": namespace, "opponentSha256": opponent_digest, "scenarioDigest": bridge.info["scenarioDigest"]}
+        if full_validation:
+            config["diagnosticOnly"] = True
         state = {"config": config, "groups": [], "current": [], "snapshot": None,
                  "latencies": [], "latencyCount": 0, "contracts": {}}
         if progress_path.exists():
@@ -462,7 +561,7 @@ def evaluate(args):
             while not STOP and time.monotonic() < deadline and len(state["groups"]) < args.seeds:
                 # Check restored results before taking any action, even if this session's
                 # game budget has just been used by the preceding phase.
-                rejection = validation_rejection(state, args.split, args.seeds)
+                rejection = None if full_validation else validation_rejection(state, args.split, args.seeds)
                 if rejection:
                     state["earlyRejection"] = rejection
                     break
@@ -483,11 +582,7 @@ def evaluate(args):
                 if obs["done"]:
                     game_budget.complete()
                     state["current"].append(float(obs["rewards"][seat % 2] > 0))
-                    for r in obs["results"]:
-                        bucket = state["contracts"].setdefault(r["contract"], {"rounds": 0, "scoreDifference": 0, "made": 0, "failed": 0, "hanging": 0})
-                        bucket["rounds"] += 1
-                        bucket["scoreDifference"] += r["added"][seat % 2] - r["added"][1 - seat % 2]
-                        bucket[r["outcome"]] += 1
+                    record_contracts(state["contracts"], obs["results"], seat % 2)
                     if len(state["current"]) == 4:
                         state["groups"].append(state["current"])
                         state["current"] = []
@@ -499,7 +594,7 @@ def evaluate(args):
                         print(json.dumps({k: report[k] for k in ["completedSeeds", "games", "confidence"]}), flush=True)
                     last_save = time.monotonic()
         finally:
-            state["earlyRejection"] = state.get("earlyRejection") or validation_rejection(state, args.split, args.seeds)
+            state["earlyRejection"] = state.get("earlyRejection") or (None if full_validation else validation_rejection(state, args.split, args.seeds))
             report = save()
             evaluation_progress(args, state, "evaluation-rejected" if report["earlyRejected"] else "evaluation-complete" if report["complete"] else "evaluation-paused")
         if not quiet:
@@ -537,6 +632,7 @@ def main():
         p.add_argument("--workers", type=int, default=2)
         p.add_argument("--threads", type=int, default=2)
         p.add_argument("--seed", type=int, default=7)
+        p.add_argument("--algorithm", choices=["dmc-v1", "ppo-v2"])
     for name in ["cycle", "status"]:
         p = sub.add_parser(name)
         p.add_argument("--run", required=True)
@@ -548,6 +644,8 @@ def main():
             limit.add_argument("--minutes", type=float)
             limit.add_argument("--games", type=int, help="Additional completed matches across all phases")
             p.add_argument("--teacher-examples", type=int)
+            p.add_argument("--holdout-examples", type=int)
+            p.add_argument("--algorithm", choices=["dmc-v1", "ppo-v2"])
             p.add_argument("--pretrain-steps", type=int)
             p.add_argument("--matches-per-candidate", type=int)
             p.add_argument("--validation-seeds", type=int)
@@ -572,6 +670,12 @@ def main():
     p.add_argument("--partner", choices=["hard", "medium"], default="hard")
     p.add_argument("--namespace")
     p.add_argument("--opponent", help="Compare against this frozen model paired with a hard bot")
+    p = sub.add_parser("experiment", help="Resumable DMC / imitation / PPO comparison; no activation")
+    p.add_argument("--run", required=True)
+    p.add_argument("--minutes", type=float, required=True, help="Wall-time budget for this invocation")
+    p.add_argument("--arm-minutes", type=float, help="Total preparation + self-play budget per arm (default 180)")
+    for option in ["teacher-examples", "holdout-examples", "pretrain-steps", "validation-seeds", "seed", "workers", "threads"]:
+        p.add_argument("--" + option, type=int)
     p = sub.add_parser("export")
     p.add_argument("--run", required=True)
     p.add_argument("--output", required=True)
@@ -591,6 +695,8 @@ def main():
         parser.error("workers/threads must be 1..8 and seed 0..2^31-1")
     if hasattr(args, "seeds") and args.seeds < 1:
         parser.error("--seeds must be positive")
+    if getattr(args, "arm_minutes", None) is not None and (not math.isfinite(args.arm_minutes) or args.arm_minutes <= 0):
+        parser.error("--arm-minutes must be finite and positive")
     signal.signal(signal.SIGINT, stop_requested)
     signal.signal(signal.SIGTERM, stop_requested)
     torch.set_num_threads(2)
@@ -603,6 +709,9 @@ def main():
             run_cycle(args)
         else:
             print_status(status(args.run, args.registry), args.json)
+    elif args.command == "experiment":
+        from experiment import run
+        run(args)
     elif args.command in ["activate", "rollback"]:
         with Bridge() as bridge:
             request = {"directory": str(Path(args.registry).resolve())}
@@ -622,7 +731,7 @@ def main():
     elif args.command == "promote":
         promote(args)
     else:
-        session = Session(args.run, args.workers, args.threads, args.seed)
+        session = Session(args.run, args.workers, args.threads, args.seed, args.algorithm)
         try:
             if args.command == "pretrain":
                 session.pretrain(args.minutes, stop_at=session.metrics["pretrainUpdates"] + args.steps if args.steps is not None else None)

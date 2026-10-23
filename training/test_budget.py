@@ -46,7 +46,7 @@ class BudgetTests(unittest.TestCase):
         for mode, metric in [('collect', 'collectMatches'), ('train', 'matches')]:
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
                 for expected in [1, 2]:
-                    session = Session(directory, workers=2)
+                    session = Session(directory, algorithm="dmc-v1", workers=2)
                     original = session.new_worker
                     def medium_worker(bridge):
                         worker = original(bridge)
@@ -100,7 +100,7 @@ class BudgetTests(unittest.TestCase):
             def run(*args):
                 return subprocess.check_output([str(ROOT / 'scripts/train-bots.sh'), *args], cwd=directory, env=env, text=True).splitlines()
             output = run('--games', '20')
-            self.assertEqual(output, [str(ROOT), 'training/learn.py', 'cycle', '--run', 'data/quality/strategy-v2-1', '--games', '20'])
+            self.assertEqual(output, [str(ROOT), 'training/learn.py', 'cycle', '--run', 'data/quality/ppo-v2-1', '--games', '20'])
             output = run('--run', 'custom path', '--games', '2')
             self.assertEqual(output[-4:], ['--run', 'custom path', '--games', '2'])
 
