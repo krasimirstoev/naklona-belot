@@ -75,6 +75,28 @@ class ReportingTests(unittest.TestCase):
         self.assertIn("отхвърлен", text)
         self.assertIn("независимата проверка", text)
 
+    def test_available_teacher_examples_are_distinct_from_inherited_counters(self):
+        s = state('collect')
+        s['metrics'].update(collectSteps=10000, teacherExamples=0, holdoutExamples=0)
+        text = self.output(print_status, s)
+        self.assertIn('0/10000 налични учителски примера', text)
+        self.assertIn('Исторически събрани: 10000', text)
+
+    def test_reached_match_threshold_explains_pending_ppo_update(self):
+        s = state('train')
+        s.update(algorithm='ppo-v2', nextTrainingMatch=100)
+        s['metrics'].update(matches=100, lastUpdatedMatch=92, pendingRolloutExamples=1024, inFlightExamples=0)
+        step = next_step(s)
+        self.assertIn('Прагът от 100 тренировъчни мача е достигнат', step['description'])
+        self.assertIn('до завършено PPO обновяване', step['description'])
+        self.assertIn('готови примери: 1024', step['description'])
+        self.assertIn('--games 20', step['command'])
+        s['metrics']['matches'] = 99
+        self.assertIn('до общо 100 завършени', next_step(s)['description'])
+        s.update(algorithm='dmc-v1')
+        s['metrics']['matches'] = 100
+        self.assertIn('до общо 100 завършени', next_step(s)['description'])
+
 
 if __name__ == "__main__":
     unittest.main()
