@@ -1,3 +1,5 @@
+Ново измерване с текущите правила: [23 октомври 2026](current-medium-new-rules.md).
+
 # Current Medium evaluation
 
 Historical measurement: these reports predate the later contra-escape option
