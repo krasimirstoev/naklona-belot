@@ -163,7 +163,7 @@ def record_contracts(buckets, results, team):
 
 
 class Session:
-    def __init__(self, directory, workers=2, threads=2, seed=7, algorithm=None):
+    def __init__(self, directory, workers=2, threads=2, seed=7, algorithm=None, bidding_profile=None):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.lock = (self.directory / "session.lock").open("a+")
@@ -179,6 +179,13 @@ class Session:
         if self.algorithm not in ["dmc-v1", "ppo-v2"] or saved and self.algorithm != saved_algorithm:
             self.lock.close()
             raise ValueError("Incompatible training algorithm; start a new run directory")
+        from bidding import PROFILES
+        saved_profile = saved['config'].get('biddingProfile', 'legacy') if saved else 'legacy'
+        self.bidding_profile = bidding_profile or saved_profile
+        if (self.bidding_profile not in PROFILES or saved and self.bidding_profile != saved_profile
+                or self.algorithm != 'ppo-v2' and self.bidding_profile != 'legacy'):
+            self.lock.close()
+            raise ValueError('Incompatible bidding profile; use a new PPO run directory')
         torch.set_num_threads(threads)
         torch.manual_seed(seed)
         self.rng = random.Random(seed)
@@ -195,6 +202,8 @@ class Session:
             self.config.update(algorithm=self.algorithm, ppo=dict(SETTINGS))
         elif not saved or "algorithm" in saved["config"]:
             self.config["algorithm"] = self.algorithm
+        if self.algorithm == 'ppo-v2' and (not saved or 'biddingProfile' in saved['config']):
+            self.config['biddingProfile'] = self.bidding_profile
         self.metrics = {"collectSteps": 0, "trainSteps": 0, "matches": 0, "pretrainUpdates": 0, "rlUpdates": 0}
         self.dataset = collections.deque(maxlen=20000)
         self.replay = collections.deque(maxlen=20000)
@@ -304,10 +313,10 @@ class Session:
             b.close()
         self.lock.close()
 
-    def collect_or_train(self, mode, minutes=None, stop_at=None, game_budget=None, holdout_target=None):
+    def collect_or_train(self, mode, minutes=None, stop_at=None, game_budget=None, holdout_target=None, stop_updates=None):
         if self.algorithm == "ppo-v2" and mode == "train":
             from ppo import train
-            return train(self, minutes, stop_at, game_budget)
+            return train(self, minutes, stop_at, game_budget, stop_updates)
         if mode == "train" and self.metrics["pretrainUpdates"] == 0:
             raise ValueError("Collect examples and run pretrain before self-play")
         game_budget = game_budget or GameBudget()
@@ -433,7 +442,7 @@ class Session:
         data = list(self.dataset)
         scenarios = self.training_scenarios()
         from ppo import teacher_batch, teacher_groups, diagnostics
-        groups = teacher_groups(data) if self.algorithm == "ppo-v2" else None
+        groups = teacher_groups(data, self.bidding_profile) if self.algorithm == "ppo-v2" else None
         if not scenarios:
             raise ValueError("Missing training scenarios")
         try:
@@ -633,6 +642,7 @@ def main():
         p.add_argument("--threads", type=int, default=2)
         p.add_argument("--seed", type=int, default=7)
         p.add_argument("--algorithm", choices=["dmc-v1", "ppo-v2"])
+        p.add_argument('--bidding-profile', choices=['legacy', 'balanced-v1'])
     for name in ["cycle", "status"]:
         p = sub.add_parser(name)
         p.add_argument("--run", required=True)
@@ -640,6 +650,8 @@ def main():
         p.add_argument("--json", action="store_true", help="Emit machine-readable events and the full report")
         if name == "cycle":
             p.add_argument("--from-run", help="Start a new cycle from trained weights; reset old game data and evaluations")
+            p.add_argument('--reuse-teacher-data', action='store_true', help='Reuse compatible PPO teacher train/holdout data with --from-run')
+            p.add_argument('--bidding-profile', choices=['legacy', 'balanced-v1'])
             limit = p.add_mutually_exclusive_group(required=True)
             limit.add_argument("--minutes", type=float)
             limit.add_argument("--games", type=int, help="Additional completed matches across all phases")
@@ -674,6 +686,9 @@ def main():
     p.add_argument("--run", required=True)
     p.add_argument("--minutes", type=float, required=True, help="Wall-time budget for this invocation")
     p.add_argument("--arm-minutes", type=float, help="Total preparation + self-play budget per arm (default 180)")
+    p.add_argument('--comparison', choices=['dmc-ppo', 'bidding'])
+    p.add_argument('--from-run', help='PPO cycle supplying snapshot-bc and teacher data for bidding comparison')
+    p.add_argument('--rollout-updates', type=int, help='Completed PPO rollouts per bidding arm (default 10)')
     for option in ["teacher-examples", "holdout-examples", "pretrain-steps", "validation-seeds", "seed", "workers", "threads"]:
         p.add_argument("--" + option, type=int)
     p = sub.add_parser("export")
@@ -731,7 +746,7 @@ def main():
     elif args.command == "promote":
         promote(args)
     else:
-        session = Session(args.run, args.workers, args.threads, args.seed, args.algorithm)
+        session = Session(args.run, args.workers, args.threads, args.seed, args.algorithm, args.bidding_profile)
         try:
             if args.command == "pretrain":
                 session.pretrain(args.minutes, stop_at=session.metrics["pretrainUpdates"] + args.steps if args.steps is not None else None)

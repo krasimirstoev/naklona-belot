@@ -97,6 +97,20 @@ class ReportingTests(unittest.TestCase):
         s['metrics']['matches'] = 100
         self.assertIn('до общо 100 завършени', next_step(s)['description'])
 
+    def test_bidding_precision_recall_and_missing_doubles_are_explicit(self):
+        from bidding import bidding_metrics
+        s = state('train')
+        s.update(algorithm='ppo-v2')
+        s['thresholds']['biddingProfile'] = 'balanced-v1'
+        values = dict(sampled=3, loss=.5, agreement=.5, bids={'pass': 2, 'C': 1}, forced=1,
+                      **bidding_metrics([(0, 0), (1, 0)]))
+        s['metrics']['diagnostics'] = {'holdout': {'bidding': values}}
+        text = self.output(print_status, s)
+        self.assertIn('Профил за наддаване: balanced-v1', text)
+        self.assertIn('пропуснати обяви: 1', text)
+        self.assertIn('precision няма данни; recall 0.0%', text)
+        self.assertIn('Контри/реконтри: precision няма данни; recall няма данни', text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -88,6 +88,8 @@ def print_status(state, json_output=False):
     print(f'\nЕксперимент: {state["run"]}')
     print(f'Фаза: {PHASES.get(state["phase"], state["phase"])}.')
     print(f'Алгоритъм: {state.get("algorithm", "dmc-v1")}.')
+    if state.get('algorithm') == 'ppo-v2':
+        print(f'Профил за наддаване: {(state.get("thresholds") or {}).get("biddingProfile", "legacy")}.')
     metrics, thresholds = state["metrics"], state.get("thresholds") or {}
     print(f'Обучение: {metrics.get("teacherExamples", metrics.get("collectSteps", 0))}/{thresholds.get("teacher_examples", "?")} налични учителски примера; '
           f'{metrics.get("pretrainUpdates", 0)}/{thresholds.get("pretrain_steps", "?")} начални стъпки; '
@@ -114,6 +116,20 @@ def print_status(state, json_output=False):
                       f'съвпадение {values["agreement"]:.1%} върху {values["sampled"]} примера.')
                 if values.get("bids"):
                     print('  Обяви на модела: ' + json.dumps(values["bids"], ensure_ascii=False) + '.')
+            if phase == 'bidding' and 'allCalls' in values:
+                rate = lambda value: 'няма данни' if value is None else f'{value:.1%}'
+                print(f'  Реални избори: {values["decisions"]}; принудени: {values["forced"]}; '
+                      f'пропуснати обяви: {values["missedCalls"]}; обяви вместо пас: {values["callsInsteadOfPass"]}; '
+                      f'грешна обява: {values["wrongCall"]}; правилни обяви: {values["correctCalls"]}.')
+                for key, label in [('allCalls', 'Всички обяви'), ('contracts', 'Договори'), ('doubles', 'Контри/реконтри')]:
+                    group = values[key]
+                    print(f'  {label}: precision {rate(group["precision"])}; recall {rate(group["recall"])} '
+                          f'({group["correct"]} точни / {group["predicted"]} предложени / {group["expected"]} учителски).')
+                print(f'  Обяви вместо учителски пас: {rate(values["falseCallRate"])}; '
+                      f'диагностични цели: {"покрити" if values["diagnosticGoalsMet"] else "непокрити"}.')
+    selection = metrics.get('teacherSelection', {})
+    if selection.get('missingGroups'):
+        print('Недостиг на учителски примери: ' + ', '.join(selection['missingGroups']) + '; използва се наличната група.')
     candidate = state.get("candidate")
     if candidate:
         print(f'Кандидат: {candidate["id"][:12]}')

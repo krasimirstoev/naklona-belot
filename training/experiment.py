@@ -40,6 +40,15 @@ def paired_comparison(baseline, candidate):
 def run(args):
     directory = Path(args.run).resolve()
     directory.mkdir(parents=True, exist_ok=True)
+    existing = json.loads((directory / 'experiment.json').read_text()) if (directory / 'experiment.json').exists() else {}
+    comparison = getattr(args, 'comparison', None) or existing.get('config', {}).get('comparison', 'dmc-ppo')
+    if existing and comparison != existing.get('config', {}).get('comparison', 'dmc-ppo'):
+        raise ValueError('Experiment comparison changed; choose a new directory')
+    if comparison == 'bidding':
+        from bidding_experiment import run as run_bidding
+        return run_bidding(args)
+    if getattr(args, 'from_run', None):
+        raise ValueError('--from-run for experiment requires --comparison bidding')
     with (directory / 'experiment.lock').open('a+') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         path = directory / 'experiment.json'

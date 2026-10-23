@@ -86,6 +86,9 @@ class Cycle:
         self.bridge = learn.Bridge()
         try:
             source = getattr(args, "from_run", None)
+            reuse = getattr(args, 'reuse_teacher_data', False)
+            if reuse and not source:
+                raise ValueError('--reuse-teacher-data requires --from-run and a new PPO directory')
             if source and previous:
                 raise ValueError("--from-run requires a new --run directory; resume this run without --from-run")
             source_state = read_json(Path(source) / "cycle.json") if source else None
@@ -93,11 +96,18 @@ class Cycle:
                 raise ValueError("--from-run must point to an existing cycle with a checkpoint")
             saved = previous["config"] if previous else source_state["config"] if source_state else {}
             algorithm = getattr(args, "algorithm", None) or (saved.get("algorithm", "dmc-v1") if saved else "ppo-v2")
+            profile = getattr(args, 'bidding_profile', None) or saved.get('biddingProfile', 'legacy')
+            if previous and profile != saved.get('biddingProfile', 'legacy'):
+                raise ValueError('Bidding profile changed; use a new run directory')
+            if profile not in ['legacy', 'balanced-v1'] or algorithm != 'ppo-v2' and profile != 'legacy':
+                raise ValueError('Bidding profile requires PPO')
             if previous and algorithm != saved.get("algorithm", "dmc-v1"):
                 raise ValueError("Training algorithm changed; start a new run directory")
             config = {key: getattr(args, key, None) if getattr(args, key, None) is not None else saved.get(key, default)
                       for key, default in DEFAULTS.items()}
             if algorithm == "ppo-v2":
+                if not previous or 'biddingProfile' in saved:
+                    config['biddingProfile'] = profile
                 config.update(algorithm=algorithm, holdout_examples=getattr(args, "holdout_examples", None) if getattr(args, "holdout_examples", None) is not None else saved.get("holdout_examples", 5000))
                 if not isinstance(config["holdout_examples"], int) or not 1 <= config["holdout_examples"] <= 5000:
                     raise ValueError("holdout-examples must be 1..5000")
@@ -123,13 +133,13 @@ class Cycle:
                                       "nextMatches": config["matches_per_candidate"], "candidate": None, "best": None, "history": []}
             self.config = config
             if source:
-                self.inherit_training(Path(source).resolve())
+                self.inherit_training(Path(source).resolve(), reuse=reuse)
             self.save()
         except Exception:
             self.close()
             raise
 
-    def inherit_training(self, source):
+    def inherit_training(self, source, reuse=False):
         if source == self.directory or (self.directory / "checkpoint.pt").exists() or (self.directory / "candidate.json").exists():
             raise ValueError("--from-run requires a new destination without a checkpoint or model")
         # Read a consistent checkpoint; never copy unfinished games or evaluation evidence.
@@ -144,7 +154,12 @@ class Cycle:
         algorithm = self.config.get("algorithm", "dmc-v1")
         if checkpoint["config"].get("algorithm", "dmc-v1") != algorithm:
             raise ValueError("Source model algorithm is incompatible; start PPO in a new directory without --from-run")
-        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"], algorithm)
+        if reuse:
+            from bidding import validate_teacher_data
+            validate_teacher_data(checkpoint, {**self.config, 'encodingVersion': learn.ENCODING_VERSION,
+                                               'scenarioDigest': self.bridge.info['scenarioDigest']})
+        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"], algorithm,
+                                self.config.get('biddingProfile', 'legacy'))
         try:
             session.network.load_state_dict(checkpoint["network"])
             if algorithm == "dmc-v1":
@@ -156,6 +171,10 @@ class Cycle:
                 session.next_seed = copy.deepcopy(checkpoint["next_seed"])
             self.state["origin"] = {"run": str(source), "checkpointSha256": source_digest,
                                     "config": checkpoint["config"], "metrics": copy.deepcopy(checkpoint["metrics"])}
+            if reuse:
+                from bidding import reuse_teacher_data
+                reuse_teacher_data(session, checkpoint)
+                self.state['origin']['teacherDataReused'] = True
             # DMC preserves optimizer/work counters; PPO prepares again under current rules.
             if algorithm == "dmc-v1" and session.metrics.get("pretrainUpdates", 0) >= self.config["pretrain_steps"]:
                 self.state["phase"] = "train"
@@ -178,7 +197,8 @@ class Cycle:
         return self.bridge.call("registryStatus", directory=self.config["registry"])
 
     def session_phase(self, phase, minutes, target):
-        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"], self.config.get("algorithm", "dmc-v1"))
+        session = learn.Session(self.directory, self.config["workers"], self.config["threads"], self.config["seed"], self.config.get("algorithm", "dmc-v1"),
+                                self.config.get('biddingProfile', 'legacy'))
         session.progress_json = self.json_output
         try:
             if phase == "pretrain":

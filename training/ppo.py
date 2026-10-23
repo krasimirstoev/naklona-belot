@@ -58,27 +58,45 @@ def match_split(seed):
     return "holdout" if int.from_bytes(digest[:4], "big") % 5 == 0 else "train"
 
 
-def teacher_groups(dataset):
-    return [[example for example in dataset if bool(example[0][36]) == bidding] for bidding in [True, False]]
+def teacher_groups(dataset, profile='legacy'):
+    groups = [[example for example in dataset if bool(example[0][36]) == bidding] for bidding in [True, False]]
+    if profile == 'legacy':
+        return groups
+    from bidding import bid_index
+    eligible = [e for e in groups[0] if len(e[1]) > 1]
+    return {'pass': [e for e in eligible if bid_index(e[1], e[2]) == 0],
+            'call': [e for e in eligible if bid_index(e[1], e[2]) != 0],
+            'playing': groups[1], 'forcedExcluded': len(groups[0]) - len(eligible)}
 
 
 def teacher_batch(session, groups, scenarios):
     batch = []
-    for group in groups:
-        source = group or next((g for g in groups if g), [])
+    if isinstance(groups, dict):
+        natural = groups['pass'] + groups['call'] + groups['playing']
+        session.metrics['teacherSelection'] = {
+            'profile': 'balanced-v1', 'available': {k: len(groups[k]) for k in ['pass', 'call', 'playing']},
+            'missingGroups': [k for k in ['pass', 'call', 'playing'] if not groups[k]],
+            'forcedExcluded': groups['forcedExcluded']}
+        selections = [(groups['pass'] or groups['call'] or natural, 12),
+                      (groups['call'] or groups['pass'] or natural, 6),
+                      (groups['playing'] or natural, 18)]
+    else:
+        selections = [(group or next((g for g in groups if g), []), 18) for group in groups]
+    for source, count in selections:
         if not source:
-            raise ValueError("Collect current-rule teacher examples before PPO training")
-        batch.extend((obs, actions, [index]) for obs, actions, index, *_ in session.rng.choices(source, k=18))
+            raise ValueError("Collect current-rule teacher examples with a choice before PPO training")
+        batch.extend((obs, actions, [index]) for obs, actions, index, *_ in session.rng.choices(source, k=count))
     batch.extend(session.rng.choices(scenarios, k=4))
     return batch
 
 
-def teacher_loss(network, batch):
+def teacher_loss(network, batch, bidding_weight=1):
     from learn import inputs, preference_loss
     logits = network(torch.cat([inputs(obs, actions) for obs, actions, _ in batch]))
     offset, losses = 0, []
-    for _, actions, preferred in batch:
-        losses.append(preference_loss(logits[offset:offset + len(actions)], preferred))
+    for obs, actions, preferred in batch:
+        weight = bidding_weight if bool(obs[36]) else 1
+        losses.append(weight * preference_loss(logits[offset:offset + len(actions)], preferred))
         offset += len(actions)
     return torch.stack(losses).mean()
 
@@ -90,20 +108,26 @@ def policy_loss(log_prob, old_log_prob, advantage, clip=.2):
 
 def diagnostics(session):
     from learn import preference_loss
+    from bidding import bidding_metrics, bid_index
     reports = {}
     with torch.no_grad():
         for name, dataset in [("train", session.dataset), ("holdout", session.holdout)]:
             report = {}
             for phase, group in zip(["bidding", "playing"], teacher_groups(dataset)):
                 # Stable bounded sample; reporting must not consume training RNG.
-                sample = group[::max(1, len(group) // 128)][:128]
+                sample = group if phase == 'bidding' else group[::max(1, len(group) // 128)][:128]
                 loss, correct, bids, teachers = 0., 0, {}, {}
+                pairs, forced = [], 0
                 for obs, actions, index, *_ in sample:
                     logits = session.network.logits(obs, actions)
                     selected = int(logits.argmax())
                     loss += float(preference_loss(logits, [index]))
                     correct += selected == index
                     if phase == "bidding":
+                        if len(actions) == 1:
+                            forced += 1
+                        else:
+                            pairs.append((bid_index(actions, index), bid_index(actions, selected)))
                         for target, action_index in [(bids, selected), (teachers, index)]:
                             bid = BIDS[int(actions[action_index, 32:41].argmax())]
                             target[bid] = target.get(bid, 0) + 1
@@ -111,7 +135,15 @@ def diagnostics(session):
                                  "loss": loss / len(sample) if sample else None,
                                  "agreement": correct / len(sample) if sample else None,
                                  "bids": bids, "teacherBids": teachers}
+                if phase == 'bidding':
+                    report[phase].update(bidding_metrics(pairs), forced=forced, fullDataset=True)
             reports[name] = report
+    if getattr(session, 'bidding_profile', 'legacy') == 'balanced-v1':
+        groups = teacher_groups(session.dataset, 'balanced-v1')
+        session.metrics['teacherSelection'] = {
+            'profile': 'balanced-v1', 'available': {k: len(groups[k]) for k in ['pass', 'call', 'playing']},
+            'missingGroups': [k for k in ['pass', 'call', 'playing'] if not groups[k]],
+            'forcedExcluded': groups['forcedExcluded']}
     session.metrics["diagnostics"] = reports
 
 
@@ -127,7 +159,7 @@ def optimize(session, scenarios, deadline):
         session.ppo_update = {"epoch": 0, "offset": 0, "order": [], "advantages": advantages,
                               "kl": 0., "clipped": 0., "count": 0}
     state = session.ppo_update
-    groups = teacher_groups(session.dataset)
+    groups = teacher_groups(session.dataset, session.bidding_profile)
     while state["epoch"] < cfg["epochs"]:
         if learn.STOP or time.monotonic() >= deadline:
             return False
@@ -145,7 +177,8 @@ def optimize(session, scenarios, deadline):
         old_log_probs = torch.tensor([s["oldLogProb"] for s in batch])
         values = session.network.value(torch.stack([s["observation"] for s in batch]))
         value_loss = nn.functional.mse_loss(values, torch.tensor([s["return"] for s in batch]))
-        anchor = teacher_loss(session.network, teacher_batch(session, groups, scenarios))
+        anchor = teacher_loss(session.network, teacher_batch(session, groups, scenarios),
+                              bidding_weight=3 if session.bidding_profile == 'balanced-v1' else 1)
         loss = (policy_loss(log_probs, old_log_probs, state["advantages"][indices], cfg["clip"])
                 + cfg["valueCoefficient"] * value_loss - cfg["entropyCoefficient"] * torch.stack(entropies).mean()
                 + cfg["teacherCoefficient"] * anchor)
@@ -171,7 +204,7 @@ def optimize(session, scenarios, deadline):
     return True
 
 
-def train(session, minutes=None, stop_at=None, game_budget=None):
+def train(session, minutes=None, stop_at=None, game_budget=None, stop_updates=None):
     import learn
     from budget import GameBudget, deadline_for
     from reporting import event_output
@@ -207,6 +240,8 @@ def train(session, minutes=None, stop_at=None, game_budget=None):
                     session.save()
                 boundary = not session.rollout and session.ppo_update is None and not active
                 if boundary and stop_at is not None and session.metrics.get("lastUpdatedMatch", 0) >= stop_at:
+                    break
+                if boundary and stop_updates is not None and session.metrics.get('rolloutUpdates', 0) >= stop_updates:
                     break
                 if budget.exhausted:
                     break
